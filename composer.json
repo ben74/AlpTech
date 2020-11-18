@@ -1,0 +1,14 @@
+{
+    "name": "alpow/wip",
+    "description": "wip",
+    "authors": [{"name": "ben", "email": "ben@x24.fr"}],
+    "minimum-stability": "dev","prefer-stable": true,
+    "require": {"php": ">=5.6.0"},
+    "autoload": {
+        "psr-0": {"wip": ""},
+        "psr-4": {"Alpow\\Wip\\": ""},
+        "classmap": ["Drupal/*"]
+    }
+}
+
+
