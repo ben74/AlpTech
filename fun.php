@@ -1,0 +1,751 @@
+<?php
+
+namespace Alptech\wip;
+
+class fun extends base
+{
+    static $bootstrap = false;
+
+    static function main()
+    {
+        return __FILE__ . __LINE__;#
+    }
+
+    static function blockMaliciousRequests($url = null, $rawBody = null, $req = null, $lp = 'logs', $files = null)
+    {
+        if (!$url) {
+            $url = $_SERVER['REQUEST_URI'];
+        }
+        if (!$rawBody) {
+            $rawBody = file_get_contents('php://input');
+        }
+        if (!$req and $_REQUEST) {
+            $req = $_REQUEST;
+        }
+        if (!$files and $_FILES) {
+            $files = $_FILES;
+        }
+        if ($url) {
+            $x = fun::injectionPattern($url);#check the uri along with query string .. avoiding injection via rewriting within where like requests ..
+            if ($x) {
+                return 'injection pattern ' . $x . ' in url ' . $url;#and querystring
+            }
+        }
+
+        if ($rawBody) {
+            $x = fun::injectionPattern($rawBody);#check the uri alondg with query string
+            if ($x) {
+                return 'injection pattern ' . $x . ' in rawBody';
+            }
+        }
+
+        if ($req && 'query string parameters goes here ..') {
+            foreach ($req as $k => $v) {
+                if (in_array($k, ['contacts_societe', 'contacts_message'])) {
+                    continue;
+                }#skip those
+                $x = fun::injectionPattern($v);
+                if ($x) {
+                    return 'injection pattern k:' . $x . ' in ' . $v;
+                }
+                $x = fun::injectionPattern($k);
+                if ($x) {
+                    return 'injection pattern v:' . $x . ' in ' . $k;
+                }
+            }
+        }
+
+        if (isset($files) and $files) {
+            $json = json_encode($files);
+            if (preg_match('~"name":"[^\"]+\.php[^\"]*"~i', $json, $m)) {#way much more simpler but wont work for more complex ..
+                return 'file upload: ' . $m[0];
+            }
+            if (preg_match('~":"[^\"]+\.php[^\"]*"~i', $json, $m)) {
+                return 'complex nested file upload: ' . $m[0];
+            }
+            $foundUploads = searchInArrayDepths($files, ['name'], '~\.php~');
+            if ($foundUploads) {
+                return 'deep file upload: ' . json_encode($foundUploads);
+            }
+        }
+        return false;#clear :)
+    }
+
+    static function injectionPattern($x)
+    {
+        /* recursive returns first positive match */
+        if (is_array($x)) {
+            foreach ($x as $v) {
+                $res = fun::injectionPattern($v);
+                if ($res && 'returns first found') {
+                    return $res;
+                }
+            }
+            return false;
+        }
+
+        /* most common possible injection patterns '--', '||',  'grant ','create ',  */
+        $sqlInjectionPatterns = ['/*', '*/', 'sleep(', 'GET_HOST_NAME', 'drop ', 'truncate ', ' delete ', 'cast(', 'ascii(', 'char(', '@@', '<script', '<ifram', '<img'];
+        foreach ($sqlInjectionPatterns as $v) {
+            if (stripos($x, $v) !== false) {
+                return $v;
+            }
+        }
+
+        if (Preg_Match("~' *or|\" *or|or *1 *= *1|union *all~i", $x, $m) && !Preg_Match("~[l|d]' *or~i", $x, $m) && 'pas anodin ..') {
+            return $m[0];
+        }
+
+        if (Preg_Match("~url\(|data:image|/png;|base64,|option=com_xmap&view=xml&tmpl=component~i", $x, $m)) {
+            return $m[0];
+        }
+        if (Preg_Match("~_users|\~root|print-439573653|/RK=|/RS=|concat\(|0x3a,password,usertype\)|http://http://|\*!union\*|plugin=imgmanager|w00tw00t|zologize/axa|HNAP1/|admin/file_manager|%63%67%69%2D%62%69%6E|%70%68%70?%2D%64+|cash+loans+|webdav/|cgi-bin|php?-d|union%20all%20select|convert%28int%2C~i", $x, $m)) {
+            return $m[0];
+        }
+        return;#nothing found
+    }
+
+    static function _die($x = null)
+    {
+        $_ENV['die'] = 1;
+        fun::gt('_die, breakpoint here is a good idea');#caught at shutdown function, is neat :)
+        if ($x && in_array(gettype($x), ['array', 'object'])) {
+            print_r($x);
+        } elseif ($x) {
+            echo $x;
+        }
+        #$e=error_get_last();
+        die;#launch gc then shutdown functions at end
+    }
+
+    static function r404($x = '', $y = '')
+    {
+        header('HTTP/1.0 404 Not Found', 1, 404);
+        fun::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
+    }
+
+    static function hl($a = '', $b = true, $c = null)
+    {
+        return header($a, $b, $c);
+    }
+
+    static function r302($x = '',$virtual=0)
+    {
+        if($virtual)return"r302::$x";
+        fun::hl('Location: ' . $x, 1, 302);
+        fun::_die();
+    }
+
+    static function dbm($x, $sub = null, $f = null)
+    {#todo:if config send debug to url ....
+        return;
+        if (DEV or LOCAL) {
+            return;
+        }#$a=1;DEVBREAKPOINT
+        $bt = fun::bt(1);
+        if (!$sub) {
+            $sub = $_ENV['h'] . ' debug';
+        }
+
+        $json = ['host' => 'dssd', 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
+        $a1 = date('ymd');
+        $b1 = date('dmy');
+        $headers = ["sd1"];
+        $url = 'dr.php';
+        $opt = [
+            10015 => json_encode($json),#post payload
+            10023 => ["Cookie: a1=$a1;b1=$b1"],#all headers as one array, sets
+            10002 => $url,
+            10036 => 'POST',
+            19913 => 1,
+            42 => 1,
+            45 => false,
+            81 => false,
+            64 => false,
+            13 => 10,
+            78 => 10,#timeout
+            52 => 1, #redir
+            2 => 1,
+            41 => 1,
+            58 => 1,  #?? Follow Return Headers
+        ];
+        $_sent = cuo($opt);
+        return;
+
+        $opt = $headers = [];
+        $from = 'dx24.fr>';
+        $to = 'dx24.fr';
+        $post = [
+            'from' => $from,
+            'to' => $to,
+            'sub' => $sub,
+            'body' => '<pre>' . $sub . ' -- ' . date('YmdHis') . ' ' . $_ENV['h'] . $_ENV['u'] . "  {\n" . print_r(
+                    [
+                        'x' => $x/*Rhtmlspecialchars($x)*/,
+                        'bt' => $bt,
+                        'host' =>
+                            $_ENV['h'],
+                        'post' => $_POST,
+                        'files' => $_FILES,
+                        'get' => $_GET,
+                        'cook' => $_COOKIE,
+                        'ip' => $_ENV['IP']
+                    ],
+                    10
+                )
+        ];
+        $_sent = fun::cup($url, $opt, $post, $headers, 1);
+        return;
+        /*
+        foreach($_ENV['debugMails'] as $mail){
+            wmail($mail, $sub, '<pre>' . $sub . ' -- ' . date('YmdHis') . ' ' . $_ENV['h'].$_ENV['u'] . "  {\n" . print_r(compact('x', 'bt') + ['host' => $_ENV['h'], 'post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']], 1));
+        }*/
+        fun::db($x, $f);
+    }
+
+    static function db($x, $f = null)
+    {
+        if (!$f) {
+            $f = ini_get('error_log');
+        }
+        if (strpos($f, $_ENV['lp']) === false) {#anom.log
+            $f = $_ENV['lp'] . $f;
+        }
+        $bt = fun::bt(1);
+        fun::FPC($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
+    }
+
+    static function FPC($f, $d, $o = null)
+    {
+        $f = str_replace('c:/home/', '', $f);#loclahost
+        static $rec;
+        $rec++;
+        if (DEV and $rec > 2) {
+            $_bt = debug_backtrace();
+            $err = 'recursivity';
+        }
+        $path = explode('/', $f);
+        $end = array_pop($path);
+        $folder = implode('/', $path);
+        if ($folder and !is_dir($folder)) {#/logs/c:/home/
+            $ok = mkdir($folder, 0777, 1);
+            if (!$ok) {
+                db('cant mkdir ' . $folder, 'anom.log');
+            }
+        }
+        $rec--;
+        return file_put_contents($f, $d, $o);
+    }
+
+    static function arrayContains($array, $contains = 0, $lv = 0, $bk = [])
+    {
+        $found = [];
+        foreach ($array as $k => $v) {
+            if (is_array($v)) {
+                $found = array_merge($found, fun::arrayContains($v, $contains, $lv + 1, array_merge($bk, [$k])));
+            } elseif (preg_match($contains, $v)) {
+                #_die(["found:$k"=>$v]);
+                $found[] = [$k => $v];
+            }
+        }
+        return $found;
+    }
+
+    static function searchInArrayDepths($array, $keys = 0, $contains = 0, $lv = 0, $bk = ['root'])
+    {
+        if (!$keys) {
+            $keys = explode(',', 'name,tmp_name');
+        }
+        $c = count($keys);
+        $matching = 0;
+        #if($lv==1)_die(compact('bk','array'));
+        foreach ($keys as $key) {
+            if (isset($array[$key])) {
+                if (is_array($array[$key]) and $contains) {
+                    $c1 = count(fun::arrayContains($array[$key], $contains, 0, $key));
+                    #_die($key.$contains.$c1);found twice
+                    #echo $c1;
+                    $matching += $c1;
+                } elseif ($contains) {
+                    if (preg_match($contains, $array[$key])) {
+                        $matching++;
+                    }
+                } else {
+                    $matching++;
+                }
+            }
+        }
+        if ($matching >= $c) {
+            #_die("ok:$matching $c");
+            return $array;
+        }
+        $found = [];
+        foreach ($array as $k => $v) {
+            if (is_array($v)) {
+                $e = fun::searchInArrayDepths($v, $keys, $contains, $lv + 1, array_merge($bk, [$k]));#search deeper
+                if ($e) {
+                    $found = array_merge($found, $e);
+                    #_die("found::".$found);
+                }
+            }
+        }
+        return $found;
+    }
+
+    static function curlFile($url, $file, $name = '', $headers = [])
+    {
+        #die(realpath($file));
+        if (!$name) {
+            $name = basename($file);
+        }#enctype : multipoart
+        #$files=['file' => '@' . realpath($file).';filename='.$name];#does not sends files
+        $files = ['file' => curl_file_create($file, '.jpg', $name)];#gives : error: operation aborted by callback
+        return fun::cup(['url' => $url, 'post' => $files, 'headers' => ['content-type: multipart/form-data'], 'headers' => $headers]);
+    }
+
+    static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 10, $unsecure = 1, $forcePort = 0)
+    {
+        if (is_array($url)) {
+            extract($url);
+        }
+        $ch = \curl_init();
+        $headers[] = 'Expect:';/*100 header*/
+        if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
+            $url = $opt[CURLOPT_URL];
+        }
+        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_VERBOSE => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_FOLLOWLOCATION => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout, CURLOPT_HTTPHEADER => $headers];
+        if ($unsecure) {
+            $opts += [CURLOPT_SSL_VERIFYHOST => false, CURLOPT_SSL_VERIFYPEER => false];
+        }
+        if ($forcePort) {
+            $opts += [CURLOPT_PORT => strpos($url, 'ttps:/') ? 443 : 80];
+        }
+
+        foreach ($opt as $k => $v) {
+            $opts[$k] = $v;
+        }#par dessus les options par défaut
+        #$opts[CURLOPT_HTTPHEADER][] = 'Expect:';#in case of 100 continue soft "error"
+        if ($post) {
+            $opts[CURLOPT_POST] = 1;
+            $opts[CURLOPT_POSTFIELDS] = $post;#$url2Callback[$url]['post']
+        }
+        \curl_setopt_array($ch, $opts);
+        $result = \curl_exec($ch);
+        $info = \curl_getinfo($ch);
+        $error = \curl_error($ch);
+        \curl_close($ch);
+        $header = substr($result, 0, $info['header_size']);
+        $contents = substr($result, $info['header_size']);
+        return compact('contents', 'header', 'info', 'error', 'opts');
+    }
+
+    static function cuo($opts)
+    {
+        $curl = curl_init();
+        curl_setopt_array($curl, $opts);
+        $result = \curl_exec($curl);
+        $info = \curl_getinfo($curl);
+        $error = \curl_error($curl);
+        \curl_close($curl);
+        $header = substr($result, 0, $info['header_size']);
+        $contents = trim(substr($result, $info['header_size']));
+        return compact('contents', 'info', 'header', 'error');#$a=1;
+    }
+
+    static function gt($x = null)
+    {
+    }
+
+    static function bt($x = null)
+    {
+        return debug_backtrace(2);
+    }
+
+    static function getConf($k)
+    {
+        require_once __DIR__ . '/conf.php';
+        if (!isset($_ENV['alpTechConf'][$k])) {
+            return null;
+        }
+        return $_ENV['alpTechConf'][$k];
+    }
+
+    static function tryAlptechRoutes($url = '',$virtual=0)
+    {
+        if (!$url) {
+            $url = $_SERVER['REQUEST_URI'];
+        }
+        $isThumbnailRoute = fun::isThumbnailRoute($url,$virtual);
+        if ($isThumbnailRoute) {
+            return $isThumbnailRoute;
+        }
+    }
+
+    static function getExtension($url = '')
+    {
+        if (!$url) {
+            $url = $_SERVER['REQUEST_URI'];
+        }
+        if (strpos($url, '?')) {
+            $url = explode('?', $url);
+            $url = reset($url);
+        }
+        $ext = explode('.', $url);
+
+        if (!count($ext)) {
+            $ext = '';
+        } else {
+            $ext = strtolower(end($ext));
+        }
+        return $ext;
+    }
+
+    static function isMedia($url = '')
+    {
+        if (!$url) {
+            $url = $_SERVER['REQUEST_URI'];
+        }
+        $mediaTypes = explode(',', fun::getConf('mediaTypes'));
+        $ext = fun::getExtension($url);
+        $res = in_array($ext, $mediaTypes);
+        return $res;
+    }
+
+
+    static function isThumbnailRoute($url = '',$virtual=0)
+    {
+        fun::bootstrap();
+        if (!$url) {
+            $url = $_SERVER['REQUEST_URI'];
+        }
+#is 404 yet becuz not set on the server
+        $s = fun::getConf('pathSeparator');
+        $url = fun::firstBefore($url,'?');
+        $url = fun::firstBefore($url,'#');
+        if (fun::isMedia($url) and strpos($url, $s) and preg_match('~' . fun::getConf('thumbnailsDir') . '(.*)~i', $url, $m)) {
+#purge querystring, then hashtag
+            $filepath =$m[1];
+            $target = $_ENV['dr'] . ltrim($url, '/');
+
+            $width = $height = null;#final public path, is expected target for thumbnail
+
+            preg_match('~' . $s . 'w([0-9]+)~', $m[1], $w);
+            preg_match('~' . $s . 'h([0-9]+)~', $m[1], $h);
+
+            if ($w && $w[1] && (int)$w[1]) {
+                if (!in_array((int)$w[1], fun::getConf('thumbAuthorizedWidths'))) {
+                    #return;
+                }
+                $filepath = str_replace($w[0], '', $filepath);#strip out parameter
+                $width = (int)$w[1];
+            }
+            if ($h && $h[1] && (int)$h[1]) {
+                if (!in_array((int)$w[1], fun::getConf('thumbAuthorizedHeights'))) {
+                    #return;
+                }
+                $filepath = str_replace($h[0], '', $filepath);#strip out
+                $height = (int)$h[1];
+            }
+
+            if (!$width and !$height) {
+                return fun::r302('/' . $url . '#original picture : as no width, nor height specified',$virtual);
+            }
+
+            $originalFile = ltrim(str_replace($s, '/', $filepath), '/');
+            $finalExt = fun::getExtension($originalFile);
+
+            $opaths = array_filter(array_unique([$originalFile, str_replace('.webp', '', $originalFile)]));#trick is to append .webp at the end of the path ..
+            foreach ($opaths as $opath) {
+                $opath = $_ENV['dr'] . $opath;
+                if (is_file($opath)) {#générer la thumb ici - once and for all !!
+                    #$b = thumbnail($opath, $width, $height);
+                    try {
+                        $b = fun::resizeImage(['ext2' => $finalExt, 'filename' => $opath], $width, $height, $target);
+                        if ($b) {
+                            return fun::r302($url . '#?generated=' . date('YmdHis') . '#',$virtual);
+                        }
+                        $a=1;
+                    } catch (\Exception $_e) {
+                        $a = 1;
+                    }
+#static public function stream($image_name, $width, $height, $format=null)
+                }
+            }
+            #sinon 404
+            #die('/*'.is_file($opath).$b.'*/');
+            return fun::r404m($virtual);
+        }
+        return;
+        #return fun::thumbnailFileName($file, 0, 0);
+    }
+
+    static function firstBefore($x, $s = '#')
+    {
+        if (strpos($x, $s)) {
+            $x = explode($s, $x);
+            return reset($x);
+        }
+        return $x;
+    }
+
+    static function r404m($virtual=0)
+    {
+        if($virtual)return __function__.'/'.fun::getConf('defaultImage');
+        header('Content-type: image/png');
+        header('HTTP/1.0 404 Not Found', 1, 404);
+        readfile(fun::getConf('defaultImage'));
+        fun::die();
+        #fun::die("/*$x*/");
+    }
+
+#fun::resizeImage(['ext2'=>'webp','filename'=>])..
+    static function resizeImage($filename, $w = null, $h = null, $target = null)
+    {
+        #was thumbgen::main(compact('filename','target','h','w'));#list($cuwidth, $cuheight) = getimagesize($filename);
+        #global $debug;
+        $ts = 2;
+        $quality = 70;#jpeg
+        $pngq = 9; //0 : no compression, 9 :best
+        $owidth = $oheight = $ext = $posy = $posx = $srcx = $srcy = $ext2 = null;
+
+        #if(c('CLI'))print_r($params);
+        if (is_array($filename)) {
+            extract($filename);
+        }
+        $s = '#';
+        if (strpos($filename, $s)) {
+            $filename = explode($s, $filename);
+            $filename = reset($filename);
+        }
+        if (!is_file($filename)) {
+            throw new Exception(__function__ . __file__ . __line__ . "!not file : $filename");
+        }
+        $info = getimagesize($filename);
+        if (!$info) {
+            throw new Exception(__function__ . __file__ . __line__ . "!image error - no mime : $filename");
+            return;
+        }
+
+        $mime = $info['mime'];
+        switch ($mime) {
+            case 'image/webp':
+                $image_create_func = 'imagecreatefromwebp';
+                $image_save_func = 'imagewebp';
+                $ext = 'webp';
+                break;
+            case 'image/jpeg':
+                $image_create_func = 'imagecreatefromjpeg';
+                $image_save_func = 'imagejpeg';
+                $ext = 'jpg';
+                break;
+            case 'image/png':
+                $image_create_func = 'imagecreatefrompng';
+                $image_save_func = 'imagepng';
+                $ext = 'png';
+                $quality = $pngq;
+                break;
+            case 'image/gif':
+                $image_create_func = 'imagecreatefromgif';
+                $image_save_func = 'imagegif';
+                $ext = 'gif';
+                break;
+            default:
+                throw new Exception(__function__ . __file__ . __line__ . "Unknown image type. : $mime");
+        }
+
+        if ($ext2 == 'webp') {#passed in last argument
+            $image_save_func = 'imagewebp';
+            $ext = $ext2;
+        }
+
+        $img = $image_create_func($filename);
+        list($cuwidth, $cuheight) = getimagesize($filename);
+        $oheight = $cuheight;
+        $owidth = $cuwidth;
+        $ratio = $cuwidth / $cuheight;
+        if ($h and !$w) {
+            $w = $h * $ratio;
+        }
+        if ($w and !$h) {
+            $h = $w / $ratio;
+        }
+        if ($w > $cuwidth) {
+            $h = ceil($cuwidth * $h / $w);
+            $w = $cuwidth;
+        }#do not enlarge
+        $width = $w;
+        $height = $h;
+        $tmp = imagecreatetruecolor($width, $height);
+        $posx = $posy = 0;
+
+        if (isset($cropping)) {
+            if (isset($resize)) { #cropped from middle
+                if ($ratio >= 1) {
+                    $srcy = 0;
+                    $srcx = ($cuwidth - $cuheight) / 2;
+                    $cuwidth = $cuheight;
+                } else {
+                    $srcx = 0;
+                    $srcy = ($cuheight - $cuwidth) / 2;
+                    $cuheight = $cuwidth;
+                }
+            } else {
+                $srcx = ($cuwidth - $width) / 2;
+                $srcy = ($cuheight - $height) / 2;
+                $cuwidth = $width;
+                $cuheight = $height;
+            }
+            #print_r(compact('ratio','posx','posy','srcx','srcy','width','height','cuwidth','cuheight'));
+            #imagecopyresampled($tmp, $img, $posx, $posy, $srcx, $srcy, $width, $height, $cuwidth, $cuheight);$image_save_func($tmp, $target, $quality);
+        } else {
+            if (isset($vertical_center) or isset($horizontal_center)) {
+                if (isset($background_color)) {
+                    $hex2rgb = $this->hex2rgb2($background_color);
+                    $color = imagecolorallocate($tmp, $hex2rgb[0], $hex2rgb[1], $hex2rgb[2]); //filled in white
+                    imagefilledrectangle($tmp, 0, 0, $width, $height, $color);
+                }
+                if (isset($vertical_center)) {
+                    $height = ($cuheight / $cuwidth) * $width;
+                }
+                if (isset($horizontal_center)) {
+                    $width = ($cuwidth / $cuheight) * $height;
+                }
+                /** ne pas dépasser ni les dimensions spécifiées, ni celle de l'image source -> cumul des deux centrages */
+                $height = ($height > $cuheight) ? $cuheight : (($height > $oheight) ? $oheight : $height);
+                $width = ($width > $cuwidth) ? $cuwidth : (($width > $owidth) ? $owidth : $width);
+            }
+            /** sinon la déformation est explicite*/
+        }
+
+        if (in_array($ext, ['png', 'webp'])) {
+            imagealphablending($tmp, false);
+            imagesavealpha($tmp, true);
+            $transparent = imagecolorallocatealpha($tmp, 255, 255, 255, 127);
+            /**rempli de la couleur transparente le fond puis*/
+            imagefilledrectangle($tmp, 0, 0, $width, $height, $transparent);
+#imagecopyresampled($tmp, $img, $posx, $posy, $srcx, $srcy, $width, $height,$cuwidth, $cuheight);
+        }
+
+        imagecopyresampled($tmp, $img, $posx, $posy, $srcx, $srcy, $width, $height, $cuwidth, $cuheight);
+
+        if (strpos($target, 'thumbs/') and 0) { #salomon.com pants -retry until less than 30% of the thumb is white
+            $count = getPixelCountByColor($tmp, 16777215);
+            while (($count[0] / $count[1]) > 0.3) {
+                $w *= 2;
+                $h *= 2;
+                $cuwidth *= 2;
+                $cuheight *= 2; #417x1000px
+                $srcx = ($owidth - $w) / 2;
+                $srcy = ($oheight - $h) / 2;
+                if ($srcx + $cuwidth > $owidth or $srcy + $cuheight > $oheight) {
+                    break;
+                }
+                imagecopyresampled($tmp, $img, $posx, $posy, $srcx, $srcy, $width, $height, $cuwidth, $cuheight);
+                $count = getPixelCountByColor($tmp, 16777215);
+            }
+        }
+
+        if (isset($grayscale)) {
+            imagefilter($tmp, IMG_FILTER_GRAYSCALE);
+        }
+
+        if (!isset($target)) {#todo: pourquoi ai-je fais cela à l'époque ??? Génération image inline sans sauvegarder le fihier ???
+            $image_save_func($tmp);
+            imagedestroy($tmp);
+            throw new Exception(__function__ . __file__ . __line__ . "!no target");
+        }
+
+        fun::makereps($target);#construire l'arboresence si manquante
+        $success = @touch($target);
+#catched above ..
+        /*try {$success = @touch($target);} catch (\Exception $e) {throw new Exception(__function__.__file__.__line__."#no writable:$target".$e->getMessage());}*/
+        if (!$success) {
+            return;
+        }
+
+        if ($ext == 'jpg') {#progressive
+            imageinterlace($tmp, true);
+        }
+
+        #can't write this file ..
+        if ($tmp) {
+            $image_save_func($tmp, $target, $quality); # . $ext
+            imagedestroy($tmp);
+        }
+        return filesize($target); /*todo: is success if touched, might be empty on failure ( too big or others ... )*/
+    }
+
+    static function makereps($target)
+    {
+        $x = dirname($target);
+        if (is_dir($x)) {
+            return 1;
+        }
+        return mkdir($x, 0777, true);
+    }
+
+    static function thumbnailFileName($file, $w = 0, $h = 0)
+    {
+        $td = fun::getconf('thumbnailsDir');#y/thumbs
+        $defaultImage = fun::getconf('defaultImage');#y/default.png
+
+        $file = str_replace('/', '-_', trim($file, '/'));
+        $file = explode('.', $file);
+        $ext = array_pop($file);
+        $file = implode('.', $file);
+        if (strlen($file) < 10) {
+            $file = str_replace('/', '-_', $defaultImage);
+            $a = 1;
+        }
+        if ($w) {
+            $file .= '-_w' . $w;
+        }
+        if ($h) {
+            $file .= '-_h' . $h;
+        }
+        $file .= '.' . $ext;
+        return $td . $file;
+    }
+
+    /* parses an old legacy thumbnail path, converting in new one */
+    static function thumb($img)
+    {
+        #return _LANG_PATH_ . '/stream/index.html?image=' .$img;#old way otherwise ..
+        parse_str('image=' . $img, $m);
+        $m['width'] = (isset($m['width'])) ? $m['width'] : 0;
+        $m['height'] = (isset($m['height'])) ? $m['height'] : 0;
+        return fun::thumbnailFileName($m['image'], $m['width'], $m['height']);
+    }
+
+    static function bootstrap()
+    {
+        if (static::$bootstrap) {
+            return;
+        }#already done
+        static::$bootstrap = 1;
+#$_ENV=[];
+        $_ENV['exc'] = [];#exceptions within functions
+        $_ENV['ext'] = fun::getExtension();
+        $_ENV['dr'] = $_SERVER['DOCUMENT_ROOT'];
+        #$_ENV['dr']=__DIR__.'../../..';
+        return;
+        register_shutdown_function(
+            function () use ($h, $u, $phpVersion, $tmp, $xdf) {
+                $_e = error_get_last();
+                if ($_e and !in_array($_e['type'], explode(',', '8'))) {
+                    $a = 1;
+                }
+            }
+        );
+    }
+
+    /**/
+    private function privateMethod($a)
+    {
+        return json_encode([__function__, $a]);
+    }
+}
+
+return; ?>
+
+TODO: myError, myException
