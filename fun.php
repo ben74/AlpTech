@@ -739,10 +739,84 @@ class fun extends base
         );
     }
 
-    /**/
+    /*accessed via __callStatic*/
     private function privateMethod($a)
     {
         return json_encode([__function__, $a]);
+    }
+/*
+$privateClass=new privateClass();
+list($reflect,$methods,$props,$values)=fun::privateAccess($privateClass);
+foreach($props as $k=>$v){
+    $k->setValue($privateClass,$k.$v2.'_');
+}
+foreach($methods as $k=>$v){
+    $res[$k]=$v->invoke($object);
+}
+print_r($res);
+[$reflect,$privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
+*/
+    static function privateAccess($class)
+    {
+        $privateVariablesAndMethods = ['methods'=>[],'vars'=>[]];
+        if(is_object($class)){
+            $object = $class;
+        }else{
+            $object = new $class();#no parameters !
+        }
+
+        $reflect = new \ReflectionClass($object);
+#ReflectionMethod::IS_STATIC | ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_ABSTRACT | ReflectionMethod::IS_FINAL
+        $which = \ReflectionMethod::IS_PROTECTED | \ReflectionMethod::IS_PRIVATE;
+        $methods = $reflect->getMethods($which);
+        $props = $reflect->getProperties($which);
+
+        foreach ($methods as $method) {
+            $method->setAccessible(true);
+            $privateVariablesAndMethods['methods'][] = $method->getName();
+            #$exec=$method->invoke($object);#new exclusive
+        }
+
+        foreach ($props as $prop) {
+            $prop->setAccessible(true);
+            $v = $prop->getValue($object);
+            #$prop->setValue($private, $v . '_2');#alter private prop
+            $privateVariablesAndMethods['vars'][$prop->getName()] = $prop->getValue($object);
+        }
+        return [$reflect,$methods,$props,$privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
+        #return compact('reflect','methods','props','privateVariablesAndMethods');#$reflect[$prop]->setValue($private,$v);
+    }
+
+    static function getAllVars($class){
+        if(is_object($class)){
+            $object = $class;
+        }else{
+            $object = new $class();#no parameters !
+        }
+        $reflect = new \ReflectionClass($object);
+        $which = \ReflectionMethod::IS_PROTECTED | \ReflectionMethod::IS_PRIVATE;
+        $props = $reflect->getProperties($which);
+        foreach ($props as $prop) {
+            $prop->setAccessible(true);
+            $ret[$prop->getName()]=$prop->getValue($object);
+        }
+        return $ret;
+    }
+
+    static function getAllMethods($class){
+        if(is_object($class)){
+            $object = $class;
+        }else{
+            $object = new $class();#no parameters !
+        }
+        $reflect = new \ReflectionClass($object);
+        $which = \ReflectionMethod::IS_PROTECTED | \ReflectionMethod::IS_PRIVATE;
+        $methods = $reflect->getMethods($which);
+        foreach($methods as $method){
+            $method->setAccessible(true);
+            $ret[$method->name]=$method->invoke($object);
+        }
+        return $ret;
     }
 }
 
