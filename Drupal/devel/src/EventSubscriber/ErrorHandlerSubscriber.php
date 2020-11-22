@@ -1,5 +1,5 @@
 <?php
-
+/*Fixes undefined function devel_set_handler upon devel module activation :: why has no one seen this yet ???? */
 namespace Drupal\devel\EventSubscriber;
 
 use Drupal\Core\Session\AccountProxyInterface;

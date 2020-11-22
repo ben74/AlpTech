@@ -11,7 +11,8 @@
              if($isblocked){fun::r404($isblocked);}
              #fun::dbM($isblocked,'blocked','secu.log');#append to optional log file or send it to bus / logCollector
          }
-- Edit conf.php in order to place your own variables ( logfolder, logcollector, thumbnails path, authorized thumbnails dimensional parameters )
+- Upon run, copies default.conf.php to conf.php then edit this file in order to place your own variables ( logfolder, logcollector, thumbnails path, authorized thumbnails 
+dimensional parameters ) etc..
 
 
 ---

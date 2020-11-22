@@ -1,6 +1,6 @@
 <?php
 
-namespace Alptech\wip;
+namespace Alptech\Wip;
 #objects registry for debugging purposes !!
 $_ENV['_obj'] = [];
 
@@ -200,6 +200,16 @@ $a=fun::i(['k1'=>'v1','k2'=>'v2'])->set(['k3'=>'v3','k4'=>'v4']);
         $instance = static::i();
         return $instance->{$a}($b[0]);
         #set singleton value
+    }
+
+    static function setStatic($a, $b)
+    {
+        static::${$a}=$b;
+    }
+
+    static function getStatic($a)
+    {
+        static::${$a};
     }
 
     /* php5.4 compactible, instead of static::class */
