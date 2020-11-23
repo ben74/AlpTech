@@ -22,7 +22,7 @@ class spark
 #phpx ~/home/d9/vendor/alptech/wip/cli.php "?host=yo&url=a&body={\"pop\":1}&dr="fr"&ip=127&cookies[a]=1&cookies[b]=2&post[a]=1&get[b]=2&request[c]=3"
         if (CLI) {
             $qs = null;
-            $_SERVER['HTTP_HOST'] = '127.0.0.1';
+            $_SERVER['HTTP_HOST'] = fun::getConf('defaultHost');
             $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
             $_SERVER['REQUEST_URI'] = implode(',', $GLOBALS['argv']);
             $_SERVER['DOCUMENT_ROOT'] = getcwd();
@@ -67,10 +67,10 @@ class spark
             if (isset($_ENV['phpinput']) and $_ENV['phpinput']) {
                 $inputJSON = $_ENV['phpinput'];
             } else {
-                $_ENV['phpinput'] = $inputJSON = trim(file_get_contents('php://input'));
+                $_ENV['phpinput'] = $inputJSON = trim(file_get_contents('php://input'),"\s\n\r\0 ");
             }#could be regular postdata .. what for cli ?
             if (in_array(substr($inputJSON, 0, 1), ['[', '{'])) {
-                $x = fun::isJson($inputJSON);
+                $x = io::isJson($inputJSON);
                 if ($x) {
                     if (!$_POST) {
                         $_POST = [];
@@ -95,6 +95,7 @@ class spark
         define('DEV', in_array($_ENV['IP'], fun::getConf('devIps')));
         define('LOCAL', in_array($_ENV['IP'], fun::getConf('localhostIps')));
         #$_ENV['dr']=__DIR__.'../../..';
+        fun::needsMigration();
         return;
     }
 
@@ -124,7 +125,7 @@ class spark
             require_once $f;
             return $f;
         }
-        $nf = f;
+        $_ENV['err']['classNotFound'][] = $f;
         return;
     }
 
@@ -174,7 +175,7 @@ class spark
                 fun::dbm([$_ENV['h'] . $_ENV['u'], $_m, $_f, $_l], 'erreur500', fun::getConf('errorLog'));
             }
 
-            fun::fap(fun::getConf('exceptionsLog'), "}" . date('YmdHis') . "{\t" . $_ENV['h'] . $_ENV['u'] . "\t" . $_m . ' ' . $_f . ' ' . $_l);
+            io::fap(fun::getConf('exceptionsLog'), "}" . date('YmdHis') . "{\t" . $_ENV['h'] . $_ENV['u'] . "\t" . $_m . ' ' . $_f . ' ' . $_l);
             $a = 1;
             #throw new \Exception($_m);#is Fatal or not ?
             #throw new fwException($exception->getMessage());

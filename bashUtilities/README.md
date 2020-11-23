@@ -1,0 +1,3 @@
+---
+- use monitoring.bash into your crontab to send host logs to distant url then use logviewer to inspect them or set alerts
+----

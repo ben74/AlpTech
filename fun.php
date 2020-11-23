@@ -11,13 +11,20 @@ class fun extends base
         return __FILE__ . __LINE__;#
     }
 
-    static function blockMaliciousRequests($url = null, $rawBody = null, $req = null, $lp = 'logs', $files = null)
+    static function firewall($url = null, $rawBody = null, $req = null, $lp = null, $files = null)
     {
+        if (!$lp) {
+            $lp = fun::getConf('logs');
+        }
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
         }
         if (!$rawBody) {
-            $rawBody = file_get_contents('php://input');
+            if (isset($_ENV['phpinput'])) {
+                $rawBody = $_ENV['phpinput'];
+            } else {
+                $rawBody = file_get_contents('php://input');
+            }
         }
         if (!$req and $_REQUEST) {
             $req = $_REQUEST;
@@ -140,26 +147,25 @@ class fun extends base
 
     static function dbm($x, $sub = null, $f = null)
     {#todo:if config send debug to url ....
-        return;
-        if (DEV or LOCAL) {
+        if (!fun::getConf('sendLogs')) {
+            return;
+        }
+        #return;
+        if (0 and (DEV or LOCAL)) {
             return;
         }#$a=1;DEVBREAKPOINT
         $bt = fun::bt(1);
         if (!$sub) {
             $sub = $_ENV['h'] . ' debug';
         }
-        if (!fun::getConf('sendLogs')) {
-            $url = fun::getConf('logCollectorUrl');
-        }
 
-        $json = ['host' => 'dssd', 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
-        $a1 = date('ymd');
-        $b1 = date('dmy');
-        $headers = ["sd1"];
-        $url = 'dr.php';
+        $json = ['host' => fun::getConf('host'), 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
+        $pk = md5(fun::getConf('logCollectorSecret') . date(str_replace("%", "", fun::getConf('logCollectorSeed'))));
+        $headers = ["Cookie: pk=" . $pk . ';XDEBUG_SESSION=1'];
+        $url = fun::getConf('logCollectorUrl');
         $opt = [
             10015 => json_encode($json),#post payload
-            10023 => ["Cookie: a1=$a1;b1=$b1"],#all headers as one array, sets
+            10023 => $headers,#all headers as one array, sets
             10002 => $url,
             10036 => 'POST',
             19913 => 1,
@@ -174,7 +180,7 @@ class fun extends base
             41 => 1,
             58 => 1,  #?? Follow Return Headers
         ];
-        $_sent = cuo($opt);
+        $_sent = fun::cuo($opt);
         return;
 
         $opt = $headers = [];
@@ -217,29 +223,7 @@ class fun extends base
             $f = $_ENV['lp'] . $f;
         }
         $bt = fun::bt(1);
-        fun::FPC($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
-    }
-
-    static function FPC($f, $d, $o = null)
-    {
-        $f = str_replace('c:/home/', '', $f);#loclahost
-        static $rec;
-        $rec++;
-        if (DEV and $rec > 2) {
-            $_bt = debug_backtrace(-2);
-            $err = 'recursivity';
-        }
-        $path = explode('/', $f);
-        $end = array_pop($path);
-        $folder = implode('/', $path);
-        if ($folder and !is_dir($folder)) {#/logs/c:/home/
-            $ok = mkdir($folder, 0777, 1);
-            if (!$ok) {
-                fun::db('cant mkdir ' . $folder, 'anom.log');
-            }
-        }
-        $rec--;
-        return file_put_contents($f, $d, $o);
+        io::fpc($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
     }
 
     static function arrayContains($array, $contains = 0, $lv = 0, $bk = [])
@@ -887,13 +871,14 @@ class fun extends base
         return mail($to, $sub, $msg, $head);
     }
 
-    /* is ip authorized ? */
-    static function _ip($x)
+    /* nice logs ips instead of ipv6 .. */
+    static function ip2hostname($x)
     {
-        if (in_array(fun::getConf('authorizedIps'))) {
-            return $x;
+        $ips = fun::getConf('ip2hostname');
+        if (isset($ips[$x])) {
+            return $ips[$x];
         }
-        return;
+        return $x;
     }
 
     static function friendly_error_type($type)
@@ -921,34 +906,141 @@ class fun extends base
         return implode(' & ', $out);
     }
 
-    static function fap($file, $contents)
+    static function var2bash($x, $prefix = '', $lv = 0, $ignoreLevelsUpperThan = 99999)
     {
-        return fun::FPC($file, "\n" . $contents, 8);
-    }
-
-    static function isJson($string, $asArray = 1)
-    {
-        $x = json_decode($string, $asArray);
-        if (json_last_error() != JSON_ERROR_NONE) {
-            return [];
-        }
-        return $x;
-    }
-
-    static function var2bash($x,$prefix='',$lv=0,$ignoreLevelsUpperThan=99999){
-        $z=[];
+        $z = [];
         foreach ($x as $k => $v) {
-            if(is_array($v)){
-                if($ignoreLevelsUpperThan>=$lv){
+            if (is_array($v)) {
+                if ($ignoreLevelsUpperThan >= $lv) {
                     continue;
                 }
-                $z2=fun::var2bash($v,$prefix.'[' . $k . ']',$lv+1);
-                $z=array_merge($z,$z2);
+                $z2 = fun::var2bash($v, $prefix . '[' . $k . ']', $lv + 1);
+                $z = array_merge($z, $z2);
                 continue;
             }
-            $z[] = $prefix. '[' . $k . ']=' . str_replace(' ', '%20', $v);#no line breaks
+            $z[] = $prefix . '[' . $k . ']=' . str_replace(' ', '%20', $v);#no line breaks
         }
         return $z;
+    }
+
+    static function win2unix($x)
+    {
+        return str_replace('\\', '/', $x);
+    }
+
+    /** todo temp timelock based on last version tag .. ou md5 des sommes des migrations effectuées ( non commité ) */
+    static function needsMigration()
+    {
+        $migrated = __DIR__ . '/migrations/migrated.log';
+        if (!is_file($migrated)) {
+            io::FPCJ($migrated, []);
+        }
+        $done = io::fgcj($migrated);
+        $d = __DIR__ . '/migrations/';
+        $migrations = array_merge(glob($d . '*.sql'), glob($d . '*.php'));
+        foreach ($migrations as &$f) {
+            $f = basename($f);
+        }
+        unset($f);
+        $todo = array_diff($migrations, $done);
+        $ok = [];
+        if ($todo) {
+            foreach ($todo as $f) {
+                $basename = basename($f);
+                $ext = fun::getExtension($f);
+                if ($ext == 'sql') {
+                    $x = explode("\n", io::fgc($d . $f));
+                    foreach ($x as $__line => $v) {
+                        $v = rtrim($v, "\t\s\n\r;- ");
+                        if (strlen($v) < 10) {
+                            continue;
+                        }#saut de ligne
+                        $ok[] = fun::sql($v);
+                        if (isset($_ENV['_err']['sql']) and $_ENV['_err']['sql']) {
+                            $err = 1;
+                            continue 2;#ignore migration, not registered and logged to errors
+                        }
+                        $a = 1;
+                    }
+                } elseif ($ext == 'php') {
+                    $ok[] = require_once $d . $f;
+                }
+                $done[] = $basename;
+                $a = 1;
+            }
+            io::FPCJ($migrated, $done);
+        }
+        #io::fpc(__DIR__.'/migrations/done.lock',);
+    }
+
+#fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
+    static function sql($sql)
+    {
+        $s = fun::getConf('mysql');
+        $names = $s['names'];
+        if (is_array($sql)) {
+            extract($sql);
+        }#overrides
+        $k = 'sqlc:' . $s['h'] . ':' . $names;
+        if (!isset($_ENV[$k])) {#mysqlclose on shutdown
+            $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p']);
+            mysqli_select_db($_ENV[$k], $s['db']);
+            if ($names) {
+                $ok = mysqli_query($_ENV[$k], 'SET NAMES ' . $names);
+                $a = 1;
+            }#db encoding
+        }
+        if (0 and $names and $names != $_ENV[$k]) {
+            mysqli_query($_ENV[$k], 'SET NAMES ' . $names);#db encoding
+        }
+
+        $x2 = mysqli_query($_ENV[$k], $sql);
+        $err = \mysqli_error($_ENV[$k]);
+        if ($err) {
+            $_ENV['_err']['sql'][$sql] = $err;
+            $a = 1;
+            if (isset($_ENV['dieOnFirstError'])) {
+                print_r($err);
+                fun::_die('first sql error');
+            }
+            return [];
+        }
+        if (Preg_match("~(create|update|alter|delete|replace) ~i", $sql)) {
+            $_ENV['sqlm'][] = $sql;
+            $nb = Mysqli_affected_rows($_ENV[$k]);
+            if (!$nb) {
+                return -999;
+            }
+            return $nb;
+        } elseif (Preg_match("~insert ~i", $sql)) {
+            $_ENV['sqlm'][] = $sql;
+            $id = Mysqli_insert_id($_ENV[$k]);
+            if (!$id) {
+                return -999;
+            }
+            return $id;
+        }
+
+        if (is_bool($x2)) {#use
+            return $sql;
+        }
+
+        $res = [];
+        if ($x2) {
+            while ($x = @mysqli_fetch_assoc($x2)) {
+                $res[] = $x;
+            }
+        }
+        return $res;
+    }
+
+    static function nocache()
+    {
+        header("Expires: on, 23 Feb 1983 19:37:15 GMT");
+        header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
+        header("Cache-Control: no-store, no-cache, must-revalidate");
+        header("Cache-Control: post-check=0, pre-check=0", false);
+        header("Pragma: no-cache");
     }
 }
 

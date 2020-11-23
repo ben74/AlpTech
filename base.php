@@ -58,8 +58,9 @@ class base
         $_ENV['zzset'] = 0;#static::$zzset=0;
     }
 
-    function push($array, $k = null, $v = null)
+    static function push($array, $k = null, $v = null)
     {
+        if (!isset($this)) {$el = static::i();} else {$el = $this;}
         $a = 1;
         if (is_null($v) and $k) {
             $v = $k;
@@ -68,23 +69,24 @@ class base
         if (!$k and $k !== 0) {
             $err = 'no keys';
         }
-        if (!isset($this->{$array})) {
-            $this->{$array} = [];
+        if (!isset($el->{$array})) {
+            $el->{$array} = [];
         }
         if (is_null($k) or (!$k and $k !== 0)) {
-            $this->{$array}[] = $v;
+            $el->{$array}[] = $v;
         } else {
-            $this->{$array}[$k] = $v;
+            $el->{$array}[$k] = $v;
         }
     }
 
 #for interceptions
-    function get($k)
+    static function get($k)
     {
-        if (!isset($this->$k)) {
+        if (!isset($this)) {$el = static::i();} else {$el = $this;}
+        if (!isset($el->$k)) {
             return null;
         }
-        return $this->$k;
+        return $el->$k;
     }
 
 /* multiples or singleton ?? */
@@ -197,8 +199,12 @@ $a=fun::i(['k1'=>'v1','k2'=>'v2'])->set(['k3'=>'v3','k4'=>'v4']);
 #$b is array of passed parameters, could be several ..
     static function __callStatic($a, $b)
     {
-        $instance = static::i();
-        return $instance->{$a}($b[0]);
+        $i = static::i();
+        if(!method_exists($i,$a)){
+            $_ENV['_err']['static class method not found'][]=static::gc().'::'.$a;
+            return;
+        }
+        return $i->{$a}($b);#[0]
         #set singleton value
     }
 

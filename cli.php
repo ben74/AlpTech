@@ -20,8 +20,7 @@ switch($argv[0]){
             $allConf = fun::getConf();
             $z = [];
             $ifs = '§';
-#bash must use subscript when assigning associative array
-            #$_a=var_export($allConf,1);#old style
+#Bash does not support multidimensionnal Arrays
             $_b=fun::var2bash($allConf,'',0,0);#old style
             fun::_die('( ' . implode($ifs, $_b) . ' )');
             break;
