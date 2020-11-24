@@ -7,6 +7,6 @@
     "autoload": {
         "psr-0": {"wip": ""},
         "psr-4": {"Alptech\\Wip\\": ["src/","./"]},
-        "classmap": ["Drupal/"]
+        "classmap": ["Drupal/","Magento/"]
     }
 }
