@@ -1,9 +1,11 @@
 <?php
 
 namespace Alptech\Wip;
-#objects registry for debugging purposes !!
-$_ENV['_obj'] = [];
-
+/*
+Adds and objects registry for debugging purposes & picking outside of context Singleton style !!
+usage :
+Class Weird_Doctrine_Orm_Object extends \Alptech\Wip\Base
+ */
 class base
 {
     #public $_data = [];
@@ -102,6 +104,7 @@ $a=fun::i(['k1'=>'v1','k2'=>'v2'])->set(['k3'=>'v3','k4'=>'v4']);
     static function i($p = null)
     {
         $class = static::gc();
+        if(!isset($_ENV['_obj']))$_ENV['_obj']=[];
         if (!isset($_ENV['_obj'][$class])) {# creates one
             if (is_array($p) and count($p) == 1 and array_keys($p) == [0]) {
                 $p = reset($p);#unpack one dimension
@@ -225,11 +228,13 @@ $a=fun::i(['k1'=>'v1','k2'=>'v2'])->set(['k3'=>'v3','k4'=>'v4']);
         #return static::class;
     }
 
-    function setOrGetKv($p = null)
+    static function setOrGetKv($p = null, $obj = 0)
     {
-        if (!isset($this)) {
+        if ($obj) {
+            $el = $obj;
+        } elseif (!isset($this)) {
             $el = static::i();
-        } else {
+        } else {#is declared object
             $el = $this;
         }
         if (!$p) {

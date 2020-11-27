@@ -2,9 +2,9 @@
 
 namespace Alptech\Wip;
 
-class fun extends base
+class fun /* extends base */
 {
-    static $conf = [];
+    static $t=0,$conf = [],$_shared = [];#collectif tant
 
     static function main()
     {
@@ -1042,6 +1042,116 @@ class fun extends base
         header("Cache-Control: post-check=0, pre-check=0", false);
         header("Pragma: no-cache");
     }
+/*}from base{*/
+    static function setStatic($a, $b)
+    {
+        static::${$a}=$b;
+    }
+
+    static function getStatic($a)
+    {
+        static::${$a};
+    }
+    static function __callStatic($a, $b)
+    {
+        $i = static::i();
+        if(!method_exists($i,$a)){
+            $_ENV['_err']['static class method not found'][]=static::gc().'::'.$a;
+            return;
+        }
+        return $i->{$a}($b);#[0]
+        #set singleton value
+    }
+    static function i($p = null)
+    {
+        $class = static::gc();
+        if(!isset($_ENV['_obj']))$_ENV['_obj']=[];
+        if (!isset($_ENV['_obj'][$class])) {# creates one
+            if (is_array($p) and count($p) == 1 and array_keys($p) == [0]) {
+                $p = reset($p);#unpack one dimension
+                $a = 1;
+            }
+            if (0 and $p) {#replaced with $o->setOrGetKv($p);
+                $reflector = new ReflectionClass($class);
+                $o = $reflector->newInstanceArgs($p);
+            } else {
+                $o = new static();
+            }
+        } else {
+            $o = reset($_ENV['_obj'][$class]);
+        }
+        $o->setOrGetKv($p, $o);#Attention : recursivity
+        return $o;
+    }
+
+    static function gc()
+    {
+        return get_called_class();
+        #return static::class;
+    }
+
+    static function setOrGetKv($p = null, $obj = 0)
+    {
+        if ($obj) {
+            $el = $obj;
+        } elseif (!isset($this)) {
+            $el = static::i();
+        } else {#is declared object
+            $el = $this;
+        }
+        if (!$p) {
+            return $el;
+        }
+
+        if (is_array($p)) {
+            foreach ($p as $k => $v) {
+                $el->{$k} = $v;
+            }
+            return $el;
+        } elseif (isset($el->{$p})) {
+            return $el->{$p};
+        } else {
+            return null;
+        }
+    }
+    function set($k, $v=0, $hydrate = 0, $_newer = 0, $virtual = 0 /* might provide additional contexts */)
+    {
+        $breakpoint=1;#interception !!
+        if ($virtual) {
+            return;
+        }
+        if (!isset($this)) {
+            $el = static::i();
+        } else {
+            $el = $this;
+        }
+        if (!$k) {
+            return $el;
+        }
+
+        if(is_array($k)){
+            foreach($k as $k2=>$v2){
+                $el->set($k2, $v2, $hydrate, $_newer, $virtual);
+            }
+            return $el;
+        }
+
+        static::$t=1;
+        $el->{$k} = $v;#passe par __set si non défini
+        static::$t=0;
+        return $el;
+    }
+
+    #on non-existing -- Loss the proper Backtrace Context when Passed using set(
+    function __set($k, $v)
+    {
+        if (static::$t) {#prevents looping :: second passage
+            $this->{$k} = $v;
+            return $this;
+        }
+        return $this->set($k, $v, 0, 1);#1er passage -- afin de pouvoir l'intercepter plus haut
+    }
+/*}end base methods{*/
 }
 
 return; ?>
