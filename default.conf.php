@@ -1,9 +1,9 @@
 <?php
 namespace Alptech\Wip;
 return [
-    'defaultHost'=>$_SERVER['REQUEST_SCHEME '].'://'.$_SERVER['HTTP_HOST'].'/',
+    'defaultHost'=>$_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST'].'/',
     'host'=>$_SERVER['HTTP_HOST'],
-    'logCollectorUrl' => $_SERVER['REQUEST_SCHEME '].'://'.$_SERVER['HTTP_HOST'].'/alptech.php?a=logCollector',#exposed path loading alptech
+    'logCollectorUrl' => $_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST'].'/alptech.php?a=logCollector',#exposed path loading alptech
     'mysql'=>['h' => '127.0.0.1', 'u' => 'a', 'p' => 'b', 'db' => 'alptech','names'=>'utf8'],
     'mysql_host' => '127.0.0.1','mysql_user' => 'a', 'mysql_pass' => 'b', 'mysql_db' => 'alptech',#bash
 

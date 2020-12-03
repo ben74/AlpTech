@@ -1042,7 +1042,7 @@ class fun /* extends base */
         header("Cache-Control: post-check=0, pre-check=0", false);
         header("Pragma: no-cache");
     }
-/*}from base{*/
+/*}copied from base in order to make this file inner autoload independant{*/
     static function setStatic($a, $b)
     {
         static::${$a}=$b;
