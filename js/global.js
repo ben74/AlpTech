@@ -41,7 +41,8 @@ function floaded(e){
 
     x=document.querySelectorAll("[style='font-size: 14px;']");//twitter not good
     x.forEach(function(y){y.removeAttribute('style');});
-    //powr: 2 191 130
+//powr: 2 191 130
+/** are the css operations done ? look for el.computedStyle **/
     squareResize(1);//Not fully loaded yet ..
     setTimeout('squareResize(100)',100);//enough =)
     setTimeout('squareResize(2000)',2000);

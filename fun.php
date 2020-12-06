@@ -918,7 +918,7 @@ class fun /* extends base */
                 $z = array_merge($z, $z2);
                 continue;
             }
-            $z[] = $prefix . '[' . $k . ']=' . str_replace(' ', '%20', $v);#no line breaks
+            $z[] = $prefix . '[' . $k . ']=' . str_replace([' ','/'], ['%20','\/'], $v);#no line breaks
         }
         return $z;
     }

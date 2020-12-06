@@ -5,6 +5,10 @@ phpx ~/home/d9/vendor/alptech/wip/cli.php "?host=yo&url=a&body={\"pop\":1}&dr="f
 */
 namespace Alptech\Wip;
 require_once __DIR__.'/spark.php';
+
+$_SERVER['REQUEST_SCHEME']='https:';
+$_SERVER['HTTP_HOST']='alptech.dev';
+
 spark::init();#doesnt require composer autoloader
 router::tryPath();#it does work fine :)
 
