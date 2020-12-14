@@ -98,8 +98,14 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
   }
 
   protected static function guessApplicationRoot() {
+      if(isset($GLOBALS['argv'])){
+          $x=explode('/',str_replace('\\','/',__DIR__));
+          $i=0;while($i<5){array_pop($x);$i++;}
+          $x=implode('/',$x).'/web/';
+          return $x;
+      }
       return $_SERVER['DOCUMENT_ROOT'];
-    return dirname(dirname(substr(__DIR__, 0, -strlen(__NAMESPACE__))));
+      return dirname(dirname(substr(__DIR__, 0, -strlen(__NAMESPACE__))));
   }
 
   /**
@@ -736,8 +742,12 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
     }
 
     // Include our bootstrap file.
-    #require_once $app_root . '/core/includes/bootstrap.inc';
-    require_once __DIR__.'//includes/bootstrap.inc';
+#require_once $app_root . '/core/includes/bootstrap.inc';
+if(isset($GLOBALS['argv'])){
+    require_once $app_root . '/core/includes/bootstrap.inc';
+}else{
+    require_once __DIR__.'/includes/bootstrap.inc';
+}
 
     // Enforce E_STRICT, but allow users to set levels not part of E_STRICT.
     error_reporting(E_STRICT | E_ALL);
