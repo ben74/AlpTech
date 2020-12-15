@@ -1,23 +1,30 @@
 <?php
+/*
+cd ~/home/d9/vendor/alptech/wip;set v 38;git add *;gu;git tag v0.0.$v;git push origin v0.0.$v;git push -f;d9
+*/
+namespace Alptech\Wip;
 
-namespace Alptech\wip;
-
-class fun extends base
+class fun /* extends base */
 {
-    static $conf=[],$bootstrap = false;
+    static $t=0,$conf = [],$_shared = [];#collectif tant
 
     static function main()
     {
         return __FILE__ . __LINE__;#
     }
 
-    static function blockMaliciousRequests($url = null, $rawBody = null, $req = null, $lp = 'logs', $files = null)
+    static function firewall($url = null, $rawBody = null, $req = null, $lp = null, $files = null)
     {
+        if (!$lp) {
+            $lp = fun::getConf('logs');
+        }
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
+            if(preg_match('~accesson.php~i',$url,$m)){return 'injection pattern ' . $m[0] . ' in url ' . $url;}#and querystring}
         }
         if (!$rawBody) {
-            $rawBody = file_get_contents('php://input');
+             $data = fun::getBody();
+             $b=1;
         }
         if (!$req and $_REQUEST) {
             $req = $_REQUEST;
@@ -33,7 +40,7 @@ class fun extends base
         }
 
         if ($rawBody) {
-            $x = fun::injectionPattern($rawBody);#check the uri alondg with query string
+            $x = fun::injectionPattern($rawBody,'rawbody');#check the uri alondg with query string
             if ($x) {
                 return 'injection pattern ' . $x . ' in rawBody';
             }
@@ -62,16 +69,16 @@ class fun extends base
             }
             if (preg_match('~":"[^\"]+\.php[^\"]*"~i', $json, $m)) {
                 return 'complex nested file upload: ' . $m[0];
-            }
-            $foundUploads = searchInArrayDepths($files, ['name'], '~\.php~');
+            }/*
+            $foundUploads = fun::searchInArrayDepths($files, ['name'], '~\.php~');
             if ($foundUploads) {
                 return 'deep file upload: ' . json_encode($foundUploads);
-            }
+            }*/
         }
         return false;#clear :)
     }
 
-    static function injectionPattern($x)
+    static function injectionPattern($x,$type='')
     {
         /* recursive returns first positive match */
         if (is_array($x)) {
@@ -85,7 +92,8 @@ class fun extends base
         }
 
         /* most common possible injection patterns '--', '||',  'grant ','create ',  */
-        $sqlInjectionPatterns = ['/*', '*/', 'sleep(', 'GET_HOST_NAME', 'drop ', 'truncate ', ' delete ', 'cast(', 'ascii(', 'char(', '@@', '<script', '<ifram', '<img'];
+        $sqlInjectionPatterns = [ 'sleep(', 'GET_HOST_NAME', 'drop ', 'truncate ', ' delete ', 'cast(', 'ascii(', 'char(', '<script', '<ifram', '<img'];
+        if($type != 'rawbody'){$sqlInjectionPatterns+=['/*', '*/', '@@',];}#plupl
         foreach ($sqlInjectionPatterns as $v) {
             if (stripos($x, $v) !== false) {
                 return $v;
@@ -101,6 +109,12 @@ class fun extends base
         }
         if (Preg_Match("~_users|\~root|print-439573653|/RK=|/RS=|concat\(|0x3a,password,usertype\)|http://http://|\*!union\*|plugin=imgmanager|w00tw00t|zologize/axa|HNAP1/|admin/file_manager|%63%67%69%2D%62%69%6E|%70%68%70?%2D%64+|cash+loans+|webdav/|cgi-bin|php?-d|union%20all%20select|convert%28int%2C~i", $x, $m)) {
             return $m[0];
+        }
+        $phps=explode(';;','<?php ;;$_SERVER[\'DOCUMENT_ROOT\'];;accesson.php');
+        foreach ($phps as $v) {
+            if (stripos($x, $v) !== false) {
+                return $v;
+            }
         }
         return;#nothing found
     }
@@ -129,34 +143,36 @@ class fun extends base
         return header($a, $b, $c);
     }
 
-    static function r302($x = '',$virtual=0)
+    static function r302($x = '', $virtual = 0)
     {
-        if($virtual){return"r302::$x";}
+        if ($virtual) {
+            return "r302::$x";
+        }
         fun::hl('Location: ' . $x, 1, 302);
         fun::_die();
     }
 
     static function dbm($x, $sub = null, $f = null)
     {#todo:if config send debug to url ....
-        return;
-        if (DEV or LOCAL) {
+        if (!fun::getConf('sendLogs')) {
+            return;
+        }
+        #return;
+        if (0 and (DEV or LOCAL)) {
             return;
         }#$a=1;DEVBREAKPOINT
         $bt = fun::bt(1);
         if (!$sub) {
             $sub = $_ENV['h'] . ' debug';
         }
-        if(!fun::getConf('sendLogs'))
-        {$url=fun::getConf('logCollectorUrl');}
 
-        $json = ['host' => 'dssd', 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
-        $a1 = date('ymd');
-        $b1 = date('dmy');
-        $headers = ["sd1"];
-        $url = 'dr.php';
+        $json = ['host' => fun::getConf('host'), 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
+        $pk = md5(fun::getConf('logCollectorSecret') . date(str_replace("%", "", fun::getConf('logCollectorSeed'))));
+        $headers = ["Cookie: pk=" . $pk . ';XDEBUG_SESSION=1'];
+        $url = fun::getConf('logCollectorUrl');
         $opt = [
             10015 => json_encode($json),#post payload
-            10023 => ["Cookie: a1=$a1;b1=$b1"],#all headers as one array, sets
+            10023 => $headers,#all headers as one array, sets
             10002 => $url,
             10036 => 'POST',
             19913 => 1,
@@ -171,7 +187,7 @@ class fun extends base
             41 => 1,
             58 => 1,  #?? Follow Return Headers
         ];
-        $_sent = cuo($opt);
+        $_sent = fun::cuo($opt);
         return;
 
         $opt = $headers = [];
@@ -214,29 +230,7 @@ class fun extends base
             $f = $_ENV['lp'] . $f;
         }
         $bt = fun::bt(1);
-        fun::FPC($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
-    }
-
-    static function FPC($f, $d, $o = null)
-    {
-        $f = str_replace('c:/home/', '', $f);#loclahost
-        static $rec;
-        $rec++;
-        if (DEV and $rec > 2) {
-            $_bt = debug_backtrace();
-            $err = 'recursivity';
-        }
-        $path = explode('/', $f);
-        $end = array_pop($path);
-        $folder = implode('/', $path);
-        if ($folder and !is_dir($folder)) {#/logs/c:/home/
-            $ok = mkdir($folder, 0777, 1);
-            if (!$ok) {
-                db('cant mkdir ' . $folder, 'anom.log');
-            }
-        }
-        $rec--;
-        return file_put_contents($f, $d, $o);
+        io::fpc($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
     }
 
     static function arrayContains($array, $contains = 0, $lv = 0, $bk = [])
@@ -363,15 +357,32 @@ class fun extends base
         return debug_backtrace(2);
     }
 
-    static function getConf($k=null)
+    static function getConf($k = null)
     {
-        if(!static::$conf){
-        #if (!isset($_ENV['alpTechConf'])) {
-            $f = 'conf.php';
-            if (!is_file($f)) {
-                copy(__DIR__ . '/default.conf.php', __DIR__ . '/' . $f);#is setup
+        if (!static::$conf) {
+            #if (!isset($_ENV['alpTechConf'])) {
+            $conf=[];
+            if(1 and isset($GLOBALS['argv'])/* and!isset($_SERVER['DOCUMENT_ROOT'])*/){
+                $_SERVER['DOCUMENT_ROOT']= __DIR__ . '/../../app/';
+                $_SERVER['HTTP_HOST']='superwebsite.com';
+                $_SERVER['REQUEST_SCHEME']='https';
+
+                $f = __DIR__ . '/cli.conf.php';
+                if (!is_file($f)) {
+                    copy(__DIR__ . '/default.cli.conf.php', $f);#is setup
+                }
+                $conf=require_once $f;
+                if($conf['cliHost'])$_SERVER['HTTP_HOST']=$conf['cliHost'];
+                if($conf['cliDocRoot'])$_SERVER['DOCUMENT_ROOT']=$conf['cliDocRoot'];
             }
-            fun::setStatic('conf',require_once $f);
+
+            $f = __DIR__ . '/conf.php';
+            if (!is_file($f)) {
+                copy(__DIR__ . '/default.conf.php', $f);#is setup
+            }
+            $new=require_once $f;
+            $conf+=$new;
+            fun::setStatic('conf', $conf);
         }
 
         if (!$k) {
@@ -383,12 +394,12 @@ class fun extends base
         return static::$conf[$k];
     }
 
-    static function tryAlptechRoutes($url = '',$virtual=0)
+    static function tryAlptechRoutes($url = '', $virtual = 0)
     {
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
         }
-        $isThumbnailRoute = fun::isThumbnailRoute($url,$virtual);
+        $isThumbnailRoute = fun::isThumbnailRoute($url, $virtual);
         if ($isThumbnailRoute) {
             return $isThumbnailRoute;
         }
@@ -425,19 +436,18 @@ class fun extends base
     }
 
 
-    static function isThumbnailRoute($url = '',$virtual=0)
+    static function isThumbnailRoute($url = '', $virtual = 0)
     {
-        fun::bootstrap();
+        spark::init();
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
         }
 #is 404 yet becuz not set on the server
         $s = fun::getConf('pathSeparator');
-        $url = fun::firstBefore($url,'?');
-        $url = fun::firstBefore($url,'#');
+        $url = fun::firstBefore($url, ['?', '#']);
         if (fun::isMedia($url) and strpos($url, $s) and preg_match('~' . fun::getConf('thumbnailsDir') . '(.*)~i', $url, $m)) {
 #purge querystring, then hashtag
-            $filepath =$m[1];
+            $filepath = $m[1];
             $target = $_ENV['dr'] . ltrim($url, '/');
 
             $width = $height = null;#final public path, is expected target for thumbnail
@@ -461,7 +471,7 @@ class fun extends base
             }
 
             if (!$width and !$height) {
-                return fun::r302('/' . $url . '#original picture : as no width, nor height specified',$virtual);
+                return fun::r302('/' . $url . '#original picture : as no width, nor height specified', $virtual);
             }
 
             $originalFile = ltrim(str_replace($s, '/', $filepath), '/');
@@ -475,9 +485,9 @@ class fun extends base
                     try {
                         $b = fun::resizeImage(['ext2' => $finalExt, 'filename' => $opath], $width, $height, $target);
                         if ($b) {
-                            return fun::r302($url . '#?generated=' . date('YmdHis') . '#',$virtual);
+                            return fun::r302($url . '#?generated=' . date('YmdHis') . '#', $virtual);
                         }
-                        $a=1;
+                        $a = 1;
                     } catch (\Exception $_e) {
                         $a = 1;
                     }
@@ -492,22 +502,43 @@ class fun extends base
         #return fun::thumbnailFileName($file, 0, 0);
     }
 
-    static function firstBefore($x, $s = '#')
+    static function firstBefore($x, $s = ['?', '#'])
     {
-        if (strpos($x, $s)) {
-            $x = explode($s, $x);
-            return reset($x);
+        if (!is_array($s)) {
+            $s = [$s];
+        }
+        foreach ($s as $separator) {
+            if (strpos($x, $separator)) {
+                $x = explode($separator, $x);
+                return reset($x);
+            }
         }
         return $x;
     }
 
-    static function r404m($virtual=0)
+    static function lastOf($x, $s = ['?', '#'])
     {
-        if($virtual){return __function__.'/'.fun::getConf('defaultImage');}
+        if (!is_array($s)) {
+            $s = [$s];
+        }
+        foreach ($s as $separator) {
+            if (strpos($x, $separator)) {
+                $x = explode($separator, $x);
+                return end($x);
+            }
+        }
+        return $x;
+    }
+
+    static function r404m($virtual = 0)
+    {
+        if ($virtual) {
+            return __function__ . '/' . fun::getConf('defaultImage');
+        }
         header('Content-type: image/png');
         header('HTTP/1.0 404 Not Found', 1, 404);
         readfile(fun::getConf('defaultImage'));
-        fun::die();
+        fun::_die();
         #fun::die("/*$x*/");
     }
 
@@ -531,11 +562,11 @@ class fun extends base
             $filename = reset($filename);
         }
         if (!is_file($filename)) {
-            throw new Exception(__function__ . __file__ . __line__ . "!not file : $filename");
+            throw new \Exception(__function__ . __file__ . __line__ . "!not file : $filename");
         }
         $info = getimagesize($filename);
         if (!$info) {
-            throw new Exception(__function__ . __file__ . __line__ . "!image error - no mime : $filename");
+            throw new \Exception(__function__ . __file__ . __line__ . "!image error - no mime : $filename");
             return;
         }
 
@@ -563,12 +594,19 @@ class fun extends base
                 $ext = 'gif';
                 break;
             default:
-                throw new Exception(__function__ . __file__ . __line__ . "Unknown image type. : $mime");
+                throw new \Exception(__function__ . __file__ . __line__ . "Unknown image type. : $mime");
         }
 
-        if ($ext2 == 'webp') {#passed in last argument
-            $image_save_func = 'imagewebp';
-            $ext = $ext2;
+        if($target){
+            $ext2=fun::getExtension($target);
+            $ext=$ext2;
+            switch ($ext2) {
+                case 'webp':$image_save_func = 'imagewebp';$quality = 80;break;
+                case 'jpg':$image_save_func = 'imagejpeg';$quality = 70;break;
+                case 'png':$image_save_func = 'imagepng';$quality = $pngq;break;
+                case 'gif':$image_save_func = 'imagegif';break;
+                #default:throw new \Exception(__function__ . __file__ . __line__ . "Unknown image type. : $mime");
+            }
         }
 
         $img = $image_create_func($filename);
@@ -665,13 +703,13 @@ class fun extends base
         if (!isset($target)) {#todo: pourquoi ai-je fais cela à l'époque ??? Génération image inline sans sauvegarder le fihier ???
             $image_save_func($tmp);
             imagedestroy($tmp);
-            throw new Exception(__function__ . __file__ . __line__ . "!no target");
+            throw new \Exception(__function__ . __file__ . __line__ . "!no target");
         }
 
         fun::makereps($target);#construire l'arboresence si manquante
         $success = @touch($target);
 #catched above ..
-        /*try {$success = @touch($target);} catch (\Exception $e) {throw new Exception(__function__.__file__.__line__."#no writable:$target".$e->getMessage());}*/
+        /*try {$success = @touch($target);} catch (\Exception $e) {throw new \Exception(__function__.__file__.__line__."#no writable:$target".$e->getMessage());}*/
         if (!$success) {
             return;
         }
@@ -730,51 +768,30 @@ class fun extends base
         return fun::thumbnailFileName($m['image'], $m['width'], $m['height']);
     }
 
-    static function bootstrap()
-    {
-        if (static::$bootstrap) {
-            return;
-        }#already done
-        static::$bootstrap = 1;
-#$_ENV=[];
-        $_ENV['exc'] = [];#exceptions within functions
-        $_ENV['ext'] = fun::getExtension();
-        $_ENV['dr'] = $_SERVER['DOCUMENT_ROOT'];
-        #$_ENV['dr']=__DIR__.'../../..';
-        return;
-        register_shutdown_function(
-            function () use ($h, $u, $phpVersion, $tmp, $xdf) {
-                $_e = error_get_last();
-                if ($_e and !in_array($_e['type'], explode(',', '8'))) {
-                    $a = 1;
-                }
-            }
-        );
-    }
-
     /*accessed via __callStatic*/
     private function privateMethod($a)
     {
         return json_encode([__function__, $a]);
     }
-/*
-$privateClass=new privateClass();
-list($reflect,$methods,$props,$values)=fun::privateAccess($privateClass);
-foreach($props as $k=>$v){
-    $k->setValue($privateClass,$k.$v2.'_');
-}
-foreach($methods as $k=>$v){
-    $res[$k]=$v->invoke($object);
-}
-print_r($res);
-[$reflect,$privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
-*/
+
+    /*
+    $privateClass=new privateClass();
+    list($reflect,$methods,$props,$values)=fun::privateAccess($privateClass);
+    foreach($props as $k=>$v){
+        $k->setValue($privateClass,$k.$v2.'_');
+    }
+    foreach($methods as $k=>$v){
+        $res[$k]=$v->invoke($object);
+    }
+    print_r($res);
+    [$reflect,$privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
+    */
     static function privateAccess($class)
     {
-        $privateVariablesAndMethods = ['methods'=>[],'vars'=>[]];
-        if(is_object($class)){
+        $privateVariablesAndMethods = ['methods' => [], 'vars' => []];
+        if (is_object($class)) {
             $object = $class;
-        }else{
+        } else {
             $object = new $class();#no parameters !
         }
 
@@ -796,14 +813,15 @@ print_r($res);
             #$prop->setValue($private, $v . '_2');#alter private prop
             $privateVariablesAndMethods['vars'][$prop->getName()] = $prop->getValue($object);
         }
-        return [$reflect,$methods,$props,$privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
+        return [$reflect, $methods, $props, $privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
         #return compact('reflect','methods','props','privateVariablesAndMethods');#$reflect[$prop]->setValue($private,$v);
     }
 
-    static function getAllVars($class){
-        if(is_object($class)){
+    static function getAllVars($class)
+    {
+        if (is_object($class)) {
             $object = $class;
-        }else{
+        } else {
             $object = new $class();#no parameters !
         }
         $reflect = new \ReflectionClass($object);
@@ -811,23 +829,24 @@ print_r($res);
         $props = $reflect->getProperties($which);
         foreach ($props as $prop) {
             $prop->setAccessible(true);
-            $ret[$prop->getName()]=$prop->getValue($object);
+            $ret[$prop->getName()] = $prop->getValue($object);
         }
         return $ret;
     }
 
-    static function getAllMethods($class){
-        if(is_object($class)){
+    static function getAllMethods($class)
+    {
+        if (is_object($class)) {
             $object = $class;
-        }else{
+        } else {
             $object = new $class();#no parameters !
         }
         $reflect = new \ReflectionClass($object);
         $which = \ReflectionMethod::IS_PROTECTED | \ReflectionMethod::IS_PRIVATE;
         $methods = $reflect->getMethods($which);
-        foreach($methods as $method){
+        foreach ($methods as $method) {
             $method->setAccessible(true);
-            $ret[$method->name]=$method->invoke($object);
+            $ret[$method->name] = $method->invoke($object);
         }
         return $ret;
     }
@@ -835,15 +854,18 @@ print_r($res);
     static function insert4row($z)
     {
         foreach ($z as &$v) {
-            if(0 and $v==="'0'")$v=0;
-            elseif ($v and in_array($v,['NOW()','now()']));#keep as
+            if (0 and $v === "'0'") {
+                $v = 0;
+            } elseif ($v and in_array($v, ['NOW()', 'now()'])) {
+                ;
+            }#keep as
             elseif ($v and !is_numeric($v)) {
                 $v = "'" . str_replace("'", "\'", preg_replace("~(\\r+|\\n+)~is", '\n', $v)) . "'";
                 $a = 1;
             } elseif (is_null($v)) {
                 $v = 'null';
-            } elseif(is_string($v) and empty($v)){
-                $v="''";
+            } elseif (is_string($v) and empty($v)) {
+                $v = "''";
             }
         }
         unset($v);
@@ -856,30 +878,357 @@ print_r($res);
         $keys = implode(',', array_keys($z));
         return "($keys) values $values";
     }
-/* simple wrappers */
-    static function alertMail($sub='',$msg='',$to=null,$head=''){
-        if(!$to)$to=fun::getConf('defaultWebmasterEmail');
+
+    /* simple wrappers */
+    static function alertMail($sub = '', $msg = '', $to = null, $head = '')
+    {
+        if (!$to) {
+            $to = fun::getConf('defaultWebmasterEmail');
+        }
         #'alert:'.$data['host'].' disk usage '.$data['v'],'msg',
         $s = "\r\n";
         if (strpos($head, 'From:') === false) {
-            if(!$from)$from = fun::getConf('defaultWebmasterTitle').' <'.$to.'>';#might have been re-injected
+            if (!$from) {
+                $from = fun::getConf('defaultWebmasterTitle') . ' <' . $to . '>';
+            }#might have been re-injected
             $head .= "From: $from{$s}Reply-To: $from{$s}";
-        }if (strpos($head, 'text/html') === false) {
+        }
+        if (strpos($head, 'text/html') === false) {
             $head .= "Content-type: text/html; charset=utf-8{$s}";
             #$head .= "MIME-Version: 1.0{$s}";#Content-type: text/html; charset=utf-8{$s}            iso-8859-1
         }
         echo "\n Alert :: $to, $sub\n\n";
         return mail($to, $sub, $msg, $head);
     }
-/* is ip authorized ? */
-    static function _ip($x){
-        if(in_array(fun::getConf('authorizedIps'))){
-            return $x;
+
+    /* nice logs ips instead of ipv6 .. */
+    static function ip2hostname($x)
+    {
+        $ips = fun::getConf('ip2hostname');
+        if (isset($ips[$x])) {
+            return $ips[$x];
         }
-        return;
+        return $x;
     }
+
+    static function friendly_error_type($type)
+    {
+        static $levels = null;
+        if ($levels === null) {
+            $levels = [];
+            foreach (get_defined_constants() as $key => $value) {
+                if (strpos($key, 'E_') !== 0) {
+                    continue;
+                }
+                $levels[$value] = substr($key, 2);
+            }
+        }
+        $out = [];
+        foreach ($levels as $int => $string) {
+            if ($int & $type) {
+                $out[] = $string;
+            }
+            $type &= ~$int;
+        }
+        if ($type) {
+            $out[] = "Error Remainder [{$type}]";
+        }
+        return implode(' & ', $out);
+    }
+
+    static function var2bash($x, $prefix = '', $lv = 0, $ignoreLevelsUpperThan = 99999)
+    {
+        $z = [];
+        foreach ($x as $k => $v) {
+            if (is_array($v)) {
+                if ($ignoreLevelsUpperThan >= $lv) {
+                    continue;
+                }
+                $z2 = fun::var2bash($v, $prefix . '[' . $k . ']', $lv + 1);
+                $z = array_merge($z, $z2);
+                continue;
+            }
+            $z[] = $prefix . '[' . $k . ']=' . str_replace(' ', '%20', $v);#no line breaks
+        }
+        return $z;
+    }
+
+    static function win2unix($x)
+    {
+        return str_replace('\\', '/', $x);
+    }
+
+    /** todo temp timelock based on last version tag .. ou md5 des sommes des migrations effectuées ( non commité ) */
+    static function needsMigration()
+    {
+        $migrated = __DIR__ . '/migrations/migrated.log';
+        if (!is_file($migrated)) {
+            io::FPCJ($migrated, []);
+        }
+        $done = io::fgcj($migrated);
+        $d = __DIR__ . '/migrations/';
+        $migrations = array_merge(glob($d . '*.sql'), glob($d . '*.php'));
+        foreach ($migrations as &$f) {
+            $f = basename($f);
+        }
+        unset($f);
+        $todo = array_diff($migrations, $done);
+        $ok = [];
+        if ($todo) {
+            foreach ($todo as $f) {
+                $basename = basename($f);
+                $ext = fun::getExtension($f);
+                if ($ext == 'sql') {
+                    $x = explode("\n", io::fgc($d . $f));
+                    foreach ($x as $__line => $v) {
+                        $v = rtrim($v, "\t\s\n\r;- ");
+                        if (strlen($v) < 10) {
+                            continue;
+                        }#saut de ligne
+                        $ok[] = fun::sql($v);
+                        if (isset($_ENV['_err']['sql']) and $_ENV['_err']['sql']) {
+                            $err = 1;
+                            continue 2;#ignore migration, not registered and logged to errors
+                        }
+                        $a = 1;
+                    }
+                } elseif ($ext == 'php') {
+                    $ok[] = require_once $d . $f;
+                }
+                $done[] = $basename;
+                $a = 1;
+            }
+            io::FPCJ($migrated, $done);
+        }
+        #io::fpc(__DIR__.'/migrations/done.lock',);
+    }
+
+#fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
+    static function sql($sql,$conf='mysql')
+    {
+        $s = fun::getConf($conf);
+        $names = $s['names'];
+        if (is_array($sql)) {
+            extract($sql);
+        }#overrides
+        $k = 'sqlc:' . $s['h'] . ':' . $names;
+        if (!isset($_ENV[$k])) {#mysqlclose on shutdown
+            $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p']);
+            mysqli_select_db($_ENV[$k], $s['db']);
+            if ($names) {
+                $ok = mysqli_query($_ENV[$k], 'SET NAMES ' . $names);
+                $a = 1;
+            }#db encoding
+        }
+        if (0 and $names and $names != $_ENV[$k]) {
+            mysqli_query($_ENV[$k], 'SET NAMES ' . $names);#db encoding
+        }
+
+        $x2 = mysqli_query($_ENV[$k], $sql);
+        $err = \mysqli_error($_ENV[$k]);
+        if ($err) {
+            $_ENV['_err']['sql'][$sql] = $err;
+            $a = 1;
+            $d=debug_backtrace(-2);
+            $c=[$_SERVER['REQUEST_URI'],$_COOKIE,$_POST];
+            fun::dbm(compact('sql','err','c','d'),'sqlerror');
+            if (isset($_ENV['dieOnFirstError'])) {
+                print_r(compact('err','sql','d'));
+                fun::_die('first sql error');
+            }
+            return [];
+        }
+        if (Preg_match("~(create|update|alter|delete|replace) ~i", $sql)) {
+            $_ENV['sqlm'][] = $sql;
+            $nb = Mysqli_affected_rows($_ENV[$k]);
+            if (!$nb) {
+                return -999;
+            }
+            return $nb;
+        } elseif (Preg_match("~insert ~i", $sql)) {
+            $_ENV['sqlm'][] = $sql;
+            $id = Mysqli_insert_id($_ENV[$k]);
+            if (!$id) {
+                return -999;
+            }
+            return $id;
+        }
+
+        if (is_bool($x2)) {#use
+            return $sql;
+        }
+
+        $res = [];
+        if ($x2) {
+            while ($x = @mysqli_fetch_assoc($x2)) {
+                $res[] = $x;
+            }
+        }
+        return $res;
+    }
+
+    static function nocache()
+    {
+        header("Expires: on, 23 Feb 1983 19:37:15 GMT");
+        header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
+        header("Cache-Control: no-store, no-cache, must-revalidate");
+        header("Cache-Control: post-check=0, pre-check=0", false);
+        header("Pragma: no-cache");
+    }
+
+    static function sendMail($to,$sub,$body,$head=null,$from=null,$mid=''){
+        $s="\r\n";
+        $sub='=?UTF-8?B?' . base64_encode($sub) . '?=';
+        if (preg_match("~Message-ID: ([^\r\n]+)~i",$head,$m) and $m[1]){$mid=$m[1];}
+        else{$mid=preg_replace('~[^a-z0-9]+~i','',md5(time().$to.$sub.$body));$head .="Message-ID: ".$mid.$s;}#generates messageId if absent
+        if (strpos($head, 'text/html') === false){$head .= "MIME-Version: 1.0{$s}Content-type: text/html; charset=utf-8{$s}";}#            iso-8859-1   #make html as default :)
+        if (!$from and preg_match("~From:[^\r\n]+<([^>]+)>~i",$head,$m) and $m[1]) {#from.$to
+            $from=trim($m[1],'> ');
+        } elseif (!$from and preg_match("~From: ([^\r\n]+)~i",$head,$m) and $m[1]) {#from.$to
+            $from=trim($m[1],'> ');
+        } elseif (strpos($head, 'From:') === false) {
+            if (!$from) {
+                $from = fun::getConf('defaultSenderMail');
+            }
+            $head .= "From: $from{$s}Reply-To: $from{$s}";
+        }
+
+        $sp=fun::getConf('mailSavePath');
+        $sent=mail($to,$sub,$body,$head);
+        if($sp){#todo:query postfix for messageId
+            $f=$_SERVER['DOCUMENT_ROOT'].$sp.substr(preg_replace('~_+~','_',preg_replace('~[^a-z0-9@\.\-]~is','_',$mid.'-_-'.$to.'-_-'.time().'-_-'.$sub)),0,250).'.json';#
+            $_written=file_put_contents($f,json_encode(compact('sent','to','sub','body','head')));
+        }
+        return $sent;
+    }
+
+    static function stripHtml($x, $violent = 0)
+    {
+        if ($violent) {
+            return preg_replace('~[^a-z0-9,\.:\-_ €\+]~is', '', strip_tags($x));
+        }
+        return preg_replace('~<[^>]+>~is', '', strip_tags($x));
+    }
+
+    static function getBody(){
+        if(isset($_ENV['phpinput']) and $_ENV['phpinput'])return $_ENV['phpinput'];#once then destroy
+        $_ENV['phpinput'] = trim(file_get_contents('php://input', false, stream_context_get_default(), 0, $_SERVER['CONTENT_LENGTH']), "\n\r \0");
+        return $_ENV['phpinput'];
+    }
+
+
+/*}from base{*/
+    static function setStatic($a, $b)
+    {
+        static::${$a}=$b;
+    }
+
+    static function getStatic($a)
+    {
+        static::${$a};
+    }
+    static function __callStatic($a, $b)
+    {
+        $i = static::i();
+        if(!method_exists($i,$a)){
+            $_ENV['_err']['static class method not found'][]=static::gc().'::'.$a;
+            return;
+        }
+        return $i->{$a}($b);#[0]
+        #set singleton value
+    }
+    static function i($p = null)
+    {
+        $class = static::gc();
+        if(!isset($_ENV['_obj']))$_ENV['_obj']=[];
+        if (!isset($_ENV['_obj'][$class])) {# creates one
+            if (is_array($p) and count($p) == 1 and array_keys($p) == [0]) {
+                $p = reset($p);#unpack one dimension
+                $a = 1;
+            }
+            if (0 and $p) {#replaced with $o->setOrGetKv($p);
+                $reflector = new ReflectionClass($class);
+                $o = $reflector->newInstanceArgs($p);
+            } else {
+                $o = new static();
+            }
+        } else {
+            $o = reset($_ENV['_obj'][$class]);
+        }
+        $o->setOrGetKv($p, $o);#Attention : recursivity
+        return $o;
+    }
+
+    static function gc()
+    {
+        return get_called_class();
+        #return static::class;
+    }
+
+    static function setOrGetKv($p = null, $obj = 0)
+    {
+        if ($obj) {
+            $el = $obj;
+        } elseif (!isset($this)) {
+            $el = static::i();
+        } else {#is declared object
+            $el = $this;
+        }
+        if (!$p) {
+            return $el;
+        }
+
+        if (is_array($p)) {
+            foreach ($p as $k => $v) {
+                $el->{$k} = $v;
+            }
+            return $el;
+        } elseif (isset($el->{$p})) {
+            return $el->{$p};
+        } else {
+            return null;
+        }
+    }
+    function set($k, $v=0, $hydrate = 0, $_newer = 0, $virtual = 0 /* might provide additional contexts */)
+    {
+        $breakpoint=1;#interception !!
+        if ($virtual) {
+            return;
+        }
+        if (!isset($this)) {
+            $el = static::i();
+        } else {
+            $el = $this;
+        }
+        if (!$k) {
+            return $el;
+        }
+
+        if(is_array($k)){
+            foreach($k as $k2=>$v2){
+                $el->set($k2, $v2, $hydrate, $_newer, $virtual);
+            }
+            return $el;
+        }
+
+        static::$t=1;
+        $el->{$k} = $v;#passe par __set si non défini
+        static::$t=0;
+        return $el;
+    }
+
+    #on non-existing -- Loss the proper Backtrace Context when Passed using set(
+    function __set($k, $v)
+    {
+        if (static::$t) {#prevents looping :: second passage
+            $this->{$k} = $v;
+            return $this;
+        }
+        return $this->set($k, $v, 0, 1);#1er passage -- afin de pouvoir l'intercepter plus haut
+    }
+/*}end base methods{*/
 }
 
 return; ?>
 
-TODO: myError, myException
+TODO: myError, myException, découpage io::fpc

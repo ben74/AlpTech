@@ -11,6 +11,7 @@ return [
     'a'=>['b'=>1],
     'devIps'=>['127.0.0.1'],'localhostIps'=>['127.0.0.1'],
     'ip2hostname'=>['127.0.0.1'=>'local'],
+    'defaultSenderMail'=>'admin <admin@superdomain.fr>',
 #multidimensional ignored for bash variables
 
 
