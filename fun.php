@@ -1,7 +1,5 @@
 <?php
-/*
-cd ~/home/d9/vendor/alptech/wip;set v 38;git add *;gu;git tag v0.0.$v;git push origin v0.0.$v;git push -f;d9
-*/
+
 namespace Alptech\Wip;
 
 class fun /* extends base */
@@ -1038,6 +1036,9 @@ class fun /* extends base */
             }
             return [];
         }
+        if(isset($_ENV['stop']) and $_ENV['stop']){$_ENV['stop']=0;
+            $a=1;
+        }
         if (Preg_match("~(create|update|alter|delete|replace) ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             $nb = Mysqli_affected_rows($_ENV[$k]);
@@ -1063,6 +1064,10 @@ class fun /* extends base */
             while ($x = @mysqli_fetch_assoc($x2)) {
                 $res[] = $x;
             }
+        }
+        if(isset($_ENV['stop']) and $_ENV['stop']){$_ENV['stop']=0;
+            $reproductible=json_encode([$res,$sql]);
+            $a=1;
         }
         return $res;
     }
@@ -1227,6 +1232,11 @@ class fun /* extends base */
         return $this->set($k, $v, 0, 1);#1er passage -- afin de pouvoir l'intercepter plus haut
     }
 /*}end base methods{*/
+    static function stripAccents($str,$utf=1) {#utf0 if opening a windows encoded file
+        if($utf) return strtr($str, 'àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ', 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+        #operates is ascii context (latin1)
+        return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+    }
 }
 
 return; ?>
