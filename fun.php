@@ -1009,7 +1009,7 @@ class fun /* extends base */
         if (is_array($sql)) {
             extract($sql);
         }#overrides
-        $k = 'sqlc:' . $s['h'] . ':' . $names;
+        $k = 'sqlc:' . $s['h'] . ':' . $s['db'] . ':' . $names;
         if (!isset($_ENV[$k])) {#mysqlclose on shutdown
             $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p']);
             mysqli_select_db($_ENV[$k], $s['db']);
@@ -1237,6 +1237,81 @@ class fun /* extends base */
         #operates is ascii context (latin1)
         return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
     }
+
+    static function distance($lat1,$lat2,$lng1,$lng2)
+    {
+        $pi80 = M_PI / 180;#1 rad
+        $lat1 *= $pi80;
+        $lng1 *= $pi80;
+        $lat2 *= $pi80;
+        $lng2 *= $pi80;
+
+        $r = 6372.797; // rayon moyen de la Terre en km
+        $dlat = $lat2 - $lat1;
+        $dlng = $lng2 - $lng1;
+        $a = sin($dlat / 2) * sin($dlat / 2) + cos($lat1) * cos($lat2) * sin($dlng / 2) * sin($dlng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $km = $r * $c;
+        return $km;
+    }
+
+    static function shortDist($olat,$olon,$dist){
+        $latDegDist=fun::distance($olat,$olat+1,$olon,$olon);#updown::  111 km par deg
+        $lonDegDist=fun::distance($olat,$olat,$olon,$olon+1);#rightleft:: 77 km
+        $dlon=$dist/$lonDegDist;
+        $dlat=$dist/$latDegDist;
+        $rect=[$olat-$dlat,$olat+$dlat,$olon-$dlon,$olon+$dlon];
+        return $rect;
+    }
+
+    static function addPhotoWaterMark($baseImg = null, $sign = null, $target = null, $position = 'br', $edgeMargin = 10, $quality = 90, $maxW = 100, $maxH = 100)
+    {
+        if (is_array($baseImg)) {
+            extract($baseImg);
+        }
+        if (!$baseImg) {
+            return;
+        }
+        $im = imagecreatefromjpeg($baseImg);
+        $w = imagesx($im);
+        $h = imagesy($im);
+        $wr = $w / $h;#1.17
+        $stamp = imagecreatefrompng($sign);
+        $sx = imagesx($stamp);
+        $sy = imagesy($stamp);
+        $sr = $sx / $sy;#3.8
+        if ($sx > ($w * $maxW / 100)) {
+            $nw = round($w * $maxW / 100);
+            $nh = round($nw / $sr);
+            $tmp = imagecreatetruecolor($nw, $nh);
+            $destX = $destY = $srcx = $srcy = 0;
+            imagealphablending($tmp, false);
+            imagesavealpha($tmp, true);
+            $transparent = imagecolorallocatealpha($tmp, 255, 255, 255, 127);
+            imagefilledrectangle($tmp, 0, 0, $nw, $wr, $transparent);
+            $res = imagecopyresampled($tmp, $stamp, $destX, $destY, $srcx, $srcy, $nw, $nh, $sx, $sy);
+            #imagePng($tmp,uniqid().'.png',9);
+            $stamp = $tmp;
+            $sx = $nw;
+            $sy = $nh;
+        }
+#todo#¤: others positions, max watermark width %, max watermark height %
+        switch ($position) {
+            case'br':
+                $wp = $w - $sx - $edgeMargin;
+                $hp = $h - $sy - $edgeMargin;
+                break;
+        }
+
+        imagecopy($im, $stamp, $wp, $hp, 0, 0, $sx, $sy);#placer dessus aux coordonnées calculées
+
+        imageJpeg($im, $target, $quality);
+        imagedestroy($im);
+        return [$target, filesize($target)];
+        #header('Content-type: image/png');imagepng($im,$target,$quality);
+
+    }
+
 }
 
 return; ?>
