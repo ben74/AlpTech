@@ -1311,7 +1311,12 @@ class fun /* extends base */
         #header('Content-type: image/png');imagepng($im,$target,$quality);
 
     }
-
+    
+    #stripAccents('1456 route de Lafrançaise')
+    static function stripAccents($x,$e='utf'){
+        if($e=='utf')return strtr(utf8_decode($x), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+            return strtr($x,'àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ','aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+    }
 }
 
 return; ?>
