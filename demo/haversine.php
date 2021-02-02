@@ -15,8 +15,7 @@ if(isset($_POST))extract($_POST);
 <tr><td>dist</td><td><input name=_dist value='<?=$_dist?>'></td></tr>
 <tr><td colspan=2><input type=submit accesskey=s></td></tr></table>
 </form><pre style='white-space:pre-wrap;word-break:all;max-width:99vw;'>Results mostly depends on indexes, repetition, and wished distance .. deviation in percentage of returned results delta .. the more the distance increases, the more the bounding rectangle and the hypothenuse calculus will deviate from haversine formulae<br>
-<?
-
+<?php
 $x=fun::shortDist($_lat,$_lon,1);$_km=[$_lat-$x[0],$_lon-$x[2]];#how much degrees in lat/lon for 1km ?
 $_rect=fun::shortDist($_lat,$_lon,$_dist);#boudaries rectangle => shall be refined to ellipsis
 
