@@ -1237,7 +1237,7 @@ class fun /* extends base */
         #operates is ascii context (latin1)
         return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
     }
-
+#harversine formulae
     static function distance($lat1,$lat2,$lng1,$lng2)
     {
         $pi80 = M_PI / 180;#1 rad
