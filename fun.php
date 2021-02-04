@@ -1348,8 +1348,6 @@ class fun /* extends base */
         if($save)return imagejpeg($res,$target,$qual);else return imagejpeg($res,null,$qual);
     }
 }
-    
-}
 
 return; ?>
 
