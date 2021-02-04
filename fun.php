@@ -1333,7 +1333,7 @@ class fun /* extends base */
         $nh=$h;$nw=$ratio*$h;
         if($allowVertical and !$horizontal){#on inverse le ratio
             $nw=$w;$nh=$ratio*$w;
-            if($nh>$h){#$td/g.php cropTo verticalNebulae.jpg $r $s
+            if($nh>$h){#phpx $td/g.php cropTo verticalNebulae.jpg $r $s
                 $nh=$h;$nw=$h/$ratio;
             }   
         }if($nw>$w){#nous n'avons pas cette ressource disponible
@@ -1350,6 +1350,26 @@ class fun /* extends base */
         $rect=['x' => $x, 'y' => $y, 'width' => $nw, 'height' => $nh];
         $res=imagecrop($im,$rect);
         if($save)return imagejpeg($res,$target,$qual);else return imagejpeg($res,null,$qual);
+    }
+    
+    static function containIn($baseImg,$ratio=16/9,$position='center',$prefix='-',$suffix='',$save=1,$qual=80,$target='',$allowVertical=0){
+        if(is_array($baseImg))extract($baseImg);
+        if(gettype($baseImg)=='resource')$im =$baseImg;else{$im=imagecreatefromjpeg($baseImg);if(!$target){$fp=explode('/',$baseImg);$end=array_pop($fp);$fp=implode('/',$fp);$target=$fp.$prefix.$end.$suffix;}}
+        $w=imagesx($im);$h=imagesy($im);
+        $cropH=$horizontal=1;if($h>$w)$horizontal=0;if($ratio<1)$cropH=0;
+        $cur=$w/$h;$nw=$w;$nh=$h;$ow=$oh=0;
+        if($allowVertical and !$horizontal){$ratio=1/$ratio;$cur=1/$cur;/*$nw=$w;$nh=$ratio*$w;*/}#inversion ratio du souhait   
+        if($ratio>$cur){#le souhait est plus large que l'image
+            $nw=round($h*$ratio);$ow=round(($nw-$w)/2);
+        }else{#le souhait est plus haut que l'image
+            $nh=round($w/$ratio);$oh=round(($nh-$h)/2);
+        }
+        #print_r(compact('w','h','nw','nh','target','save','allowVertical'));
+        $tmp = imagecreatetruecolor($nw, $nh);
+        $color_white = ImageColorAllocate($tmp, 255, 255, 255);
+        ImageFilledRectangle($tmp, 0, 0, $nw, $nh, $color_white);
+        imagecopy($tmp, $im, $ow, $oh, 0, 0, $w, $h);
+        if($save)return imagejpeg($tmp,$target,$qual);else return imagejpeg($tmp,null,$qual);
     }
 }
 
