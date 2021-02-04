@@ -1311,6 +1311,44 @@ class fun /* extends base */
         #header('Content-type: image/png');imagepng($im,$target,$quality);
 
     }
+    static function addBorder($baseImg,$perWidth=0.5,$suffix='-t£.jpg'){
+        if(is_array($baseImg))extract($baseImg);
+        if(!$target)$target=$baseImg.$suffix;
+        $im = imagecreatefromjpeg($baseImg);$w=imagesx($im);$h=imagesy($im);
+        $mw=round($w*$perWidth/100);$nw=$w+$mw*2;$nh=$h+$mw*2;
+
+        $tmp = imagecreatetruecolor($nw, $nh);
+        $color_white = ImageColorAllocate($tmp, 255, 255, 255);
+        ImageFilledRectangle($tmp, 0, 0, $nw, $nh, $color_white);
+
+        imagecopy($tmp, $im, $mw, $mw, 0, 0, $w, $h);
+        $_ok=imagejpeg($tmp,$target,80);
+        return $_ok;
+    }
+    
+    static function cropTo($baseImg,$ratio=16/9,$position='center',$suffix='-t£.jpg',$save=1,$qual=80,$target=''){
+        if(is_array($baseImg))extract($baseImg);
+        if(gettype($baseImg)=='resource')$im =$baseImg;else{$im=imagecreatefromjpeg($baseImg);if(!$target)$target=$baseImg.$suffix;}
+        $w=imagesx($im);$h=imagesy($im);
+        $cropH=$horizontal=1;if($h>$w)$horizontal=0;if($ratio<1)$cropH=0;
+        $x=$y=0;#début:non défini : haut gauche de l'image
+        $nh=$h;$nw=$ratio*$h;
+        if($nw>$w){#nous n'avons pas cette ressource disponible
+            $nw=$w;$nh=$w/$ratio;
+        }else{#la place existe, le souhait est-il vertical ?
+        }
+
+        if($position=='center'){
+            $y=$h/2-$nh/2;
+            $x=$w/2-$nw/2;
+        }
+
+        $rect=['x' => $x, 'y' => $y, 'width' => $nw, 'height' => $nh];
+        $res=imagecrop($im,$rect);
+        if($save)return imagejpeg($res,$target,$qual);else return imagejpeg($res,null,$qual);
+    }
+}
+    
 }
 
 return; ?>

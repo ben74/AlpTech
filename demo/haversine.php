@@ -23,6 +23,9 @@ $s="select (6371 * acos(cos(radians(latitude)) * cos(radians($_lat)) * cos(radia
 $a=microtime(1);$x[]=fun::sql($s,$db);$time['haver:'.count(end($x))]=microtime(1)-$a;#real results !
 foreach(end($x) as $t){$oids[]=$t['id'];}
 
+$s="select (6371 * acos(cos(radians(latitude)) * cos(radians($_lat)) * cos(radians($_lon) -radians(longitude)) + sin(radians(latitude)) * sin(radians($_lat)))) as distance,a.* from $table a where (6371 * acos(cos(radians(latitude)) * cos(radians($_lat)) * cos(radians($_lon) -radians(longitude)) + sin(radians(latitude)) * sin(radians($_lat)))) <= $_dist order by distance asc";
+$a=microtime(1);$x[]=fun::sql($s,$db);$time['haver:where :'.count(end($x))]=microtime(1)-$a;#real results !
+
 $s="select (6371 * acos(cos(radians(latitude)) * cos(radians($_lat)) * cos(radians($_lon) -radians(longitude)) + sin(radians(latitude)) * sin(radians($_lat)))) as distance,a.* from $table a where latitude between $_rect[0] and $_rect[1] and longitude between $_rect[2] and $_rect[3] having distance <= $_dist order by distance asc";
 $a=microtime(1);$x[]=fun::sql($s,$db);$time['bound+haver:slighthly faster?:'.count(end($x))]=microtime(1)-$a;
 
@@ -34,7 +37,7 @@ $a=microtime(1);$x[]=fun::sql($s,$db);$time['hyp:'.count(end($x))]=microtime(1)-
 
 $nids=[];foreach(end($x) as $t){$nids[]=$t['id'];} $deviation['hyp:']=(count(array_diff($oids,$nids))+count(array_diff($nids,$oids)))*100/count($oids);
 
-#3rd=plus de résultats ..
+#3rd=plus de résultats, plus rapidement, à affinier ..
 $s="select a.* from $table a where latitude between $_rect[0] and $_rect[1] and longitude between $_rect[2] and $_rect[3]";
 $a=microtime(1);
 $z=fun::sql($s,$db);
