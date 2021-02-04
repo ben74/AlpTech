@@ -1311,31 +1311,35 @@ class fun /* extends base */
         #header('Content-type: image/png');imagepng($im,$target,$quality);
 
     }
-    static function addBorder($baseImg,$perWidth=0.5,$suffix='-t£.jpg'){
+    static function addBorder($baseImg,$perWidth=0.5,$prefix='-',$suffix='',$save=1,$qual=80){
         if(is_array($baseImg))extract($baseImg);
-        if(!$target)$target=$baseImg.$suffix;
-        $im = imagecreatefromjpeg($baseImg);$w=imagesx($im);$h=imagesy($im);
+        if(gettype($baseImg)=='resource'){$im=$baseImg;}
+        else{$im = imagecreatefromjpeg($baseImg);if(!$target){$fp=explode('/',$baseImg);$end=array_pop($fp);$fp=implode('/',$fp);$target=$fp.$prefix.$end.$suffix;}}
+        $w=imagesx($im);$h=imagesy($im);
         $mw=round($w*$perWidth/100);$nw=$w+$mw*2;$nh=$h+$mw*2;
-
         $tmp = imagecreatetruecolor($nw, $nh);
         $color_white = ImageColorAllocate($tmp, 255, 255, 255);
         ImageFilledRectangle($tmp, 0, 0, $nw, $nh, $color_white);
-
         imagecopy($tmp, $im, $mw, $mw, 0, 0, $w, $h);
-        $_ok=imagejpeg($tmp,$target,80);
-        return $_ok;
+        if($save)return imagejpeg($tmp,$target,$qual);else return imagejpeg($tmp,null,$qual);
     }
     
-    static function cropTo($baseImg,$ratio=16/9,$position='center',$suffix='-t£.jpg',$save=1,$qual=80,$target=''){
+    static function cropTo($baseImg,$ratio=16/9,$position='center',$prefix='-',$suffix='',$save=1,$qual=80,$target='',$allowVertical=0){
         if(is_array($baseImg))extract($baseImg);
-        if(gettype($baseImg)=='resource')$im =$baseImg;else{$im=imagecreatefromjpeg($baseImg);if(!$target)$target=$baseImg.$suffix;}
+        if(gettype($baseImg)=='resource')$im =$baseImg;else{$im=imagecreatefromjpeg($baseImg);if(!$target){$fp=explode('/',$baseImg);$end=array_pop($fp);$fp=implode('/',$fp);$target=$fp.$prefix.$end.$suffix;}}
         $w=imagesx($im);$h=imagesy($im);
         $cropH=$horizontal=1;if($h>$w)$horizontal=0;if($ratio<1)$cropH=0;
         $x=$y=0;#début:non défini : haut gauche de l'image
         $nh=$h;$nw=$ratio*$h;
-        if($nw>$w){#nous n'avons pas cette ressource disponible
+        if($allowVertical and !$horizontal){#on inverse le ratio
+            $nw=$w;$nh=$ratio*$w;
+            if($nh>$h){#$td/g.php cropTo verticalNebulae.jpg $r $s
+                $nh=$h;$nw=$h/$ratio;
+            }   
+        }if($nw>$w){#nous n'avons pas cette ressource disponible
             $nw=$w;$nh=$w/$ratio;
         }else{#la place existe, le souhait est-il vertical ?
+        
         }
 
         if($position=='center'){
