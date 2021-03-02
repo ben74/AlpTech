@@ -2,7 +2,7 @@
 namespace Alptech\Wip;
 
 /* simplest I/O wrapper */
-
+if(!defined('DEV'))define('DEV',1);
 class io
 {
     static function fap($file, $contents)

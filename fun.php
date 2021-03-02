@@ -1111,6 +1111,7 @@ class fun /* extends base */
         $res = [];
         if ($x2) {
             while ($x = @mysqli_fetch_assoc($x2)) {
+                if(isset($x['unikk']))return $x['unikk'];#single expectation
                 $res[] = $x;
             }
         }
