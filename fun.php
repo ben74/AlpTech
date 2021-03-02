@@ -1200,8 +1200,6 @@ class fun /* extends base */
             return;
         }
         return $i->{$a}($b);
-        #[
-        0]
         #set singleton value
     }
 
