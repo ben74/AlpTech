@@ -4,7 +4,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $t=0,$conf = [],$_shared = [];#collectif tant
+    static $t = 0, $conf = [], $_shared = [];#collectif tant
 
     static function main()
     {
@@ -18,11 +18,13 @@ class fun /* extends base */
         }
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
-            if(preg_match('~accesson.php~i',$url,$m)){return 'injection pattern ' . $m[0] . ' in url ' . $url;}#and querystring}
+            if (preg_match('~accesson.php~i', $url, $m)) {
+                return 'injection pattern ' . $m[0] . ' in url ' . $url;
+            }#and querystring}
         }
         if (!$rawBody) {
-             $data = fun::getBody();
-             $b=1;
+            $data = fun::getBody();
+            $b = 1;
         }
         if (!$req and $_REQUEST) {
             $req = $_REQUEST;
@@ -38,7 +40,7 @@ class fun /* extends base */
         }
 
         if ($rawBody) {
-            $x = fun::injectionPattern($rawBody,'rawbody');#check the uri alondg with query string
+            $x = fun::injectionPattern($rawBody, 'rawbody');#check the uri alondg with query string
             if ($x) {
                 return 'injection pattern ' . $x . ' in rawBody';
             }
@@ -76,7 +78,7 @@ class fun /* extends base */
         return false;#clear :)
     }
 
-    static function injectionPattern($x,$type='')
+    static function injectionPattern($x, $type = '')
     {
         /* recursive returns first positive match */
         if (is_array($x)) {
@@ -90,8 +92,10 @@ class fun /* extends base */
         }
 
         /* most common possible injection patterns '--', '||',  'grant ','create ',  */
-        $sqlInjectionPatterns = [ 'sleep(', 'GET_HOST_NAME', 'drop ', 'truncate ', ' delete ', 'cast(', 'ascii(', 'char(', '<script', '<ifram', '<img'];
-        if($type != 'rawbody'){$sqlInjectionPatterns+=['/*', '*/', '@@',];}#plupl
+        $sqlInjectionPatterns = ['sleep(', 'GET_HOST_NAME', 'drop ', 'truncate ', ' delete ', 'cast(', 'ascii(', 'char(', '<script', '<ifram', '<img'];
+        if ($type != 'rawbody') {
+            $sqlInjectionPatterns += ['/*', '*/', '@@',];
+        }#plupl
         foreach ($sqlInjectionPatterns as $v) {
             if (stripos($x, $v) !== false) {
                 return $v;
@@ -108,7 +112,7 @@ class fun /* extends base */
         if (Preg_Match("~_users|\~root|print-439573653|/RK=|/RS=|concat\(|0x3a,password,usertype\)|http://http://|\*!union\*|plugin=imgmanager|w00tw00t|zologize/axa|HNAP1/|admin/file_manager|%63%67%69%2D%62%69%6E|%70%68%70?%2D%64+|cash+loans+|webdav/|cgi-bin|php?-d|union%20all%20select|convert%28int%2C~i", $x, $m)) {
             return $m[0];
         }
-        $phps=explode(';;','<?php ;;$_SERVER[\'DOCUMENT_ROOT\'];;accesson.php');
+        $phps = explode(';;', '<?php ;;$_SERVER[\'DOCUMENT_ROOT\'];;accesson.php');
         foreach ($phps as $v) {
             if (stripos($x, $v) !== false) {
                 return $v;
@@ -297,7 +301,7 @@ class fun /* extends base */
         return fun::cup(['url' => $url, 'post' => $files, 'headers' => ['content-type: multipart/form-data'], 'headers' => $headers]);
     }
 
-    static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 10, $unsecure = 1, $forcePort = 0)
+    static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 10, $unsecure = 1, $forcePort = 0, $follow = 1)
     {
         if (is_array($url)) {
             extract($url);
@@ -307,7 +311,10 @@ class fun /* extends base */
         if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
             $url = $opt[CURLOPT_URL];
         }
-        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_VERBOSE => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_FOLLOWLOCATION => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout, CURLOPT_HTTPHEADER => $headers];
+        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_VERBOSE => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout, CURLOPT_HTTPHEADER => $headers];
+        if ($follow) {
+            $opts += [CURLOPT_FOLLOWLOCATION => $follow];
+        }#
         if ($unsecure) {
             $opts += [CURLOPT_SSL_VERIFYHOST => false, CURLOPT_SSL_VERIFYPEER => false];
         }
@@ -359,27 +366,27 @@ class fun /* extends base */
     {
         if (!static::$conf) {
             #if (!isset($_ENV['alpTechConf'])) {
-            $conf=[];
-            if(1 and isset($GLOBALS['argv'])/* and!isset($_SERVER['DOCUMENT_ROOT'])*/){
-                $_SERVER['DOCUMENT_ROOT']= __DIR__ . '/../../app/';
-                $_SERVER['HTTP_HOST']='superwebsite.com';
-                $_SERVER['REQUEST_SCHEME']='https';
+            $conf = [];
+            if (1 and isset($GLOBALS['argv'])/* and!isset($_SERVER['DOCUMENT_ROOT'])*/) {
+                $_SERVER['DOCUMENT_ROOT'] = __DIR__ . '/../../app/';
+                $_SERVER['HTTP_HOST'] = 'superwebsite.com';
+                $_SERVER['REQUEST_SCHEME'] = 'https';
 
                 $f = __DIR__ . '/cli.conf.php';
                 if (!is_file($f)) {
                     copy(__DIR__ . '/default.cli.conf.php', $f);#is setup
                 }
-                $conf=require_once $f;
-                if($conf['cliHost'])$_SERVER['HTTP_HOST']=$conf['cliHost'];
-                if($conf['cliDocRoot'])$_SERVER['DOCUMENT_ROOT']=$conf['cliDocRoot'];
+                $conf = require_once $f;
+                if ($conf['cliHost']) $_SERVER['HTTP_HOST'] = $conf['cliHost'];
+                if ($conf['cliDocRoot']) $_SERVER['DOCUMENT_ROOT'] = $conf['cliDocRoot'];
             }
 
             $f = __DIR__ . '/conf.php';
             if (!is_file($f)) {
                 copy(__DIR__ . '/default.conf.php', $f);#is setup
             }
-            $new=require_once $f;
-            $conf+=$new;
+            $new = require_once $f;
+            $conf += $new;
             fun::setStatic('conf', $conf);
         }
 
@@ -595,14 +602,25 @@ class fun /* extends base */
                 throw new \Exception(__function__ . __file__ . __line__ . "Unknown image type. : $mime");
         }
 
-        if($target){
-            $ext2=fun::getExtension($target);
-            $ext=$ext2;
+        if ($target) {
+            $ext2 = fun::getExtension($target);
+            $ext = $ext2;
             switch ($ext2) {
-                case 'webp':$image_save_func = 'imagewebp';$quality = 80;break;
-                case 'jpg':$image_save_func = 'imagejpeg';$quality = 70;break;
-                case 'png':$image_save_func = 'imagepng';$quality = $pngq;break;
-                case 'gif':$image_save_func = 'imagegif';break;
+                case 'webp':
+                    $image_save_func = 'imagewebp';
+                    $quality = 80;
+                    break;
+                case 'jpg':
+                    $image_save_func = 'imagejpeg';
+                    $quality = 70;
+                    break;
+                case 'png':
+                    $image_save_func = 'imagepng';
+                    $quality = $pngq;
+                    break;
+                case 'gif':
+                    $image_save_func = 'imagegif';
+                    break;
                 #default:throw new \Exception(__function__ . __file__ . __line__ . "Unknown image type. : $mime");
             }
         }
@@ -854,10 +872,10 @@ class fun /* extends base */
         foreach ($z as &$v) {
             if (0 and $v === "'0'") {
                 $v = 0;
-            } elseif ($v and in_array($v, ['NOW()', 'now()'])) {
-                ;
-            }#keep as
-            elseif ($v and !is_numeric($v)) {
+            } elseif ($v and in_array(strtolower($v), ['now()'])) {#keep
+            } elseif ($v and strpos(strtolower($v), 'convert(') !== FALSE) {
+            } elseif ($v and strpos(strtolower($v), 'binary(') !== FALSE) {
+            } elseif ($v and !is_numeric($v)) {
                 $v = "'" . str_replace("'", "\'", preg_replace("~(\\r+|\\n+)~is", '\n', $v)) . "'";
                 $a = 1;
             } elseif (is_null($v)) {
@@ -1002,21 +1020,43 @@ class fun /* extends base */
     }
 
 #fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
-    static function sql($sql,$conf='mysql')
+    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try=0)
     {
+        if($try>3)return;
+        $baseConf = $sql;
         $s = fun::getConf($conf);
         $names = $s['names'];
         if (is_array($sql)) {
             extract($sql);
+            if (isset($s)) extract($s);
         }#overrides
-        $k = 'sqlc:' . $s['h'] . ':' . $s['db'] . ':' . $names;
+        if (!isset($s['h'])) {
+            $a = 1;
+        }
+        $k = 'sqlc:' . $s['h'] . ':' . $s['db'] . ':' . $names . ':' . $port;
         if (!isset($_ENV[$k])) {#mysqlclose on shutdown
-            $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p']);
-            mysqli_select_db($_ENV[$k], $s['db']);
-            if ($names) {
-                $ok = mysqli_query($_ENV[$k], 'SET NAMES ' . $names);
+            $_c = $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
+            if (!$_c) {
+                print_r($s);
+                die('wtf');
+            }
+            if (isset($_c->error) and $_c->error) {
+                $a = 1;
+            }
+            $_ok = mysqli_select_db($_ENV[$k], $s['db']);
+            if (!$_ok) {
+                $a = 1;
+                #mysqli_select_db($_c,'superadmin');
+            }
+            if (0 and $names) {
+                $ok = mysqli_query($_ENV[$k], "SET NAMES '" . $names . "'");
                 $a = 1;
             }#db encoding
+            if ($charset) {
+                $__ok = mysqli_set_charset($_ENV[$k], $charset);
+                $a = 1;
+                #mysqli_query($_ENV[$k],"SET charset '".$charset."'");
+            }
         }
         if (0 and $names and $names != $_ENV[$k]) {
             mysqli_query($_ENV[$k], 'SET NAMES ' . $names);#db encoding
@@ -1024,24 +1064,31 @@ class fun /* extends base */
 
         $x2 = mysqli_query($_ENV[$k], $sql);
         $err = \mysqli_error($_ENV[$k]);
-        if ($err) {
-            $_ENV['_err']['sql'][$sql] = $err;
+        if ($err and !$ignoreErrors) {
+            if ($err == 'MySQL server has gone away') {#
+                unset($_ENV[$k]);
+                $x = fun::sql($baseConf, $conf, $charset, $port, $ignoreErrors,$try+1);
+                return $x;
+            }
+            $_ENV['_sql'][$sql] = $_ENV['_err']['sql'][$sql] = $err;
             $a = 1;
-            $d=debug_backtrace(-2);
-            $c=[$_SERVER['REQUEST_URI'],$_COOKIE,$_POST];
-            fun::dbm(compact('sql','err','c','d'),'sqlerror');
+            $d = debug_backtrace(-2);
+            $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
+            fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
             if (isset($_ENV['dieOnFirstError'])) {
-                print_r(compact('err','sql','d'));
+                print_r(compact('err', 'sql', 'd'));
                 fun::_die('first sql error');
             }
             return [];
         }
-        if(isset($_ENV['stop']) and $_ENV['stop']){$_ENV['stop']=0;
-            $a=1;
+        if (isset($_ENV['stop']) and $_ENV['stop']) {
+            $_ENV['stop'] = 0;
+            $a = 1;
         }
         if (Preg_match("~(create|update|alter|delete|replace) ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             $nb = Mysqli_affected_rows($_ENV[$k]);
+            $_ENV['_sql'][$sql] = $nb;
             if (!$nb) {
                 return -999;
             }
@@ -1049,6 +1096,7 @@ class fun /* extends base */
         } elseif (Preg_match("~insert ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             $id = Mysqli_insert_id($_ENV[$k]);
+            $_ENV['_sql'][$sql] = $id;
             if (!$id) {
                 return -999;
             }
@@ -1056,6 +1104,7 @@ class fun /* extends base */
         }
 
         if (is_bool($x2)) {#use
+            $_ENV['_sql'][$sql] = 1;
             return $sql;
         }
 
@@ -1065,10 +1114,12 @@ class fun /* extends base */
                 $res[] = $x;
             }
         }
-        if(isset($_ENV['stop']) and $_ENV['stop']){$_ENV['stop']=0;
-            $reproductible=json_encode([$res,$sql]);
-            $a=1;
+        if (isset($_ENV['stop']) and $_ENV['stop']) {
+            $_ENV['stop'] = 0;
+            $reproductible = json_encode([$res, $sql]);
+            $a = 1;
         }
+        $_ENV['_sql'][$sql] = $res;
         return $res;
     }
 
@@ -1081,16 +1132,23 @@ class fun /* extends base */
         header("Pragma: no-cache");
     }
 
-    static function sendMail($to,$sub,$body,$head=null,$from=null,$mid=''){
-        $s="\r\n";
-        $sub='=?UTF-8?B?' . base64_encode($sub) . '?=';
-        if (preg_match("~Message-ID: ([^\r\n]+)~i",$head,$m) and $m[1]){$mid=$m[1];}
-        else{$mid=preg_replace('~[^a-z0-9]+~i','',md5(time().$to.$sub.$body));$head .="Message-ID: ".$mid.$s;}#generates messageId if absent
-        if (strpos($head, 'text/html') === false){$head .= "MIME-Version: 1.0{$s}Content-type: text/html; charset=utf-8{$s}";}#            iso-8859-1   #make html as default :)
-        if (!$from and preg_match("~From:[^\r\n]+<([^>]+)>~i",$head,$m) and $m[1]) {#from.$to
-            $from=trim($m[1],'> ');
-        } elseif (!$from and preg_match("~From: ([^\r\n]+)~i",$head,$m) and $m[1]) {#from.$to
-            $from=trim($m[1],'> ');
+    static function sendMail($to, $sub, $body, $head = null, $from = null, $mid = '')
+    {
+        $s = "\r\n";
+        $sub = '=?UTF-8?B?' . base64_encode($sub) . '?=';
+        if (preg_match("~Message-ID: ([^\r\n]+)~i", $head, $m) and $m[1]) {
+            $mid = $m[1];
+        } else {
+            $mid = preg_replace('~[^a-z0-9]+~i', '', md5(time() . $to . $sub . $body));
+            $head .= "Message-ID: " . $mid . $s;
+        }#generates messageId if absent
+        if (strpos($head, 'text/html') === false) {
+            $head .= "MIME-Version: 1.0{$s}Content-type: text/html; charset=utf-8{$s}";
+        }#            iso-8859-1   #make html as default :)
+        if (!$from and preg_match("~From:[^\r\n]+<([^>]+)>~i", $head, $m) and $m[1]) {#from.$to
+            $from = trim($m[1], '> ');
+        } elseif (!$from and preg_match("~From: ([^\r\n]+)~i", $head, $m) and $m[1]) {#from.$to
+            $from = trim($m[1], '> ');
         } elseif (strpos($head, 'From:') === false) {
             if (!$from) {
                 $from = fun::getConf('defaultSenderMail');
@@ -1098,11 +1156,11 @@ class fun /* extends base */
             $head .= "From: $from{$s}Reply-To: $from{$s}";
         }
 
-        $sp=fun::getConf('mailSavePath');
-        $sent=mail($to,$sub,$body,$head);
-        if($sp){#todo:query postfix for messageId
-            $f=$_SERVER['DOCUMENT_ROOT'].$sp.substr(preg_replace('~_+~','_',preg_replace('~[^a-z0-9@\.\-]~is','_',$mid.'-_-'.$to.'-_-'.time().'-_-'.$sub)),0,250).'.json';#
-            $_written=file_put_contents($f,json_encode(compact('sent','to','sub','body','head')));
+        $sp = fun::getConf('mailSavePath');
+        $sent = mail($to, $sub, $body, $head);
+        if ($sp) {#todo:query postfix for messageId
+            $f = $_SERVER['DOCUMENT_ROOT'] . $sp . substr(preg_replace('~_+~', '_', preg_replace('~[^a-z0-9@\.\-]~is', '_', $mid . '-_-' . $to . '-_-' . time() . '-_-' . $sub)), 0, 250) . '.json';#
+            $_written = file_put_contents($f, json_encode(compact('sent', 'to', 'sub', 'body', 'head')));
         }
         return $sent;
     }
@@ -1115,37 +1173,42 @@ class fun /* extends base */
         return preg_replace('~<[^>]+>~is', '', strip_tags($x));
     }
 
-    static function getBody(){
-        if(isset($_ENV['phpinput']) and $_ENV['phpinput'])return $_ENV['phpinput'];#once then destroy
+    static function getBody()
+    {
+        if (isset($_ENV['phpinput']) and $_ENV['phpinput']) return $_ENV['phpinput'];#once then destroy
         $_ENV['phpinput'] = trim(file_get_contents('php://input', false, stream_context_get_default(), 0, $_SERVER['CONTENT_LENGTH']), "\n\r \0");
         return $_ENV['phpinput'];
     }
 
 
-/*}from base{*/
+    /*}from base{*/
     static function setStatic($a, $b)
     {
-        static::${$a}=$b;
+        static::${$a} = $b;
     }
 
     static function getStatic($a)
     {
         static::${$a};
     }
+
     static function __callStatic($a, $b)
     {
         $i = static::i();
-        if(!method_exists($i,$a)){
-            $_ENV['_err']['static class method not found'][]=static::gc().'::'.$a;
+        if (!method_exists($i, $a)) {
+            $_ENV['_err']['static class method not found'][] = static::gc() . '::' . $a;
             return;
         }
-        return $i->{$a}($b);#[0]
+        return $i->{$a}($b);
+        #[
+        0]
         #set singleton value
     }
+
     static function i($p = null)
     {
         $class = static::gc();
-        if(!isset($_ENV['_obj']))$_ENV['_obj']=[];
+        if (!isset($_ENV['_obj'])) $_ENV['_obj'] = [];
         if (!isset($_ENV['_obj'][$class])) {# creates one
             if (is_array($p) and count($p) == 1 and array_keys($p) == [0]) {
                 $p = reset($p);#unpack one dimension
@@ -1194,9 +1257,10 @@ class fun /* extends base */
             return null;
         }
     }
-    function set($k, $v=0, $hydrate = 0, $_newer = 0, $virtual = 0 /* might provide additional contexts */)
+
+    function set($k, $v = 0, $hydrate = 0, $_newer = 0, $virtual = 0 /* might provide additional contexts */)
     {
-        $breakpoint=1;#interception !!
+        $breakpoint = 1;#interception !!
         if ($virtual) {
             return;
         }
@@ -1209,16 +1273,16 @@ class fun /* extends base */
             return $el;
         }
 
-        if(is_array($k)){
-            foreach($k as $k2=>$v2){
+        if (is_array($k)) {
+            foreach ($k as $k2 => $v2) {
                 $el->set($k2, $v2, $hydrate, $_newer, $virtual);
             }
             return $el;
         }
 
-        static::$t=1;
+        static::$t = 1;
         $el->{$k} = $v;#passe par __set si non défini
-        static::$t=0;
+        static::$t = 0;
         return $el;
     }
 
@@ -1231,14 +1295,17 @@ class fun /* extends base */
         }
         return $this->set($k, $v, 0, 1);#1er passage -- afin de pouvoir l'intercepter plus haut
     }
-/*}end base methods{*/
-    static function stripAccents($str,$utf=1) {#utf0 if opening a windows encoded file
-        if($utf) return strtr($str, 'àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ', 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+
+    /*}end base methods{*/
+    static function stripAccents($str, $utf = 1)
+    {#utf0 if opening a windows encoded file
+        if ($utf) return strtr($str, 'àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ', 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
         #operates is ascii context (latin1)
         return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
     }
+
 #harversine formulae
-    static function distance($lat1,$lat2,$lng1,$lng2)
+    static function distance($lat1, $lat2, $lng1, $lng2)
     {
         $pi80 = M_PI / 180;#1 rad
         $lat1 *= $pi80;
@@ -1255,12 +1322,13 @@ class fun /* extends base */
         return $km;
     }
 
-    static function shortDist($olat,$olon,$dist){
-        $latDegDist=fun::distance($olat,$olat+1,$olon,$olon);#updown::  111 km par deg
-        $lonDegDist=fun::distance($olat,$olat,$olon,$olon+1);#rightleft:: 77 km
-        $dlon=$dist/$lonDegDist;
-        $dlat=$dist/$latDegDist;
-        $rect=[$olat-$dlat,$olat+$dlat,$olon-$dlon,$olon+$dlon];
+    static function shortDist($olat, $olon, $dist)
+    {
+        $latDegDist = fun::distance($olat, $olat + 1, $olon, $olon);#updown::  111 km par deg
+        $lonDegDist = fun::distance($olat, $olat, $olon, $olon + 1);#rightleft:: 77 km
+        $dlon = $dist / $lonDegDist;
+        $dlat = $dist / $latDegDist;
+        $rect = [$olat - $dlat, $olat + $dlat, $olon - $dlon, $olon + $dlon];
         return $rect;
     }
 
@@ -1311,65 +1379,116 @@ class fun /* extends base */
         #header('Content-type: image/png');imagepng($im,$target,$quality);
 
     }
-    static function addBorder($baseImg,$perWidth=0.5,$prefix='-',$suffix='',$save=1,$qual=80){
-        if(is_array($baseImg))extract($baseImg);
-        if(gettype($baseImg)=='resource'){$im=$baseImg;}
-        else{$im = imagecreatefromjpeg($baseImg);if(!$target){$fp=explode('/',$baseImg);$end=array_pop($fp);$fp=implode('/',$fp);$target=$fp.$prefix.$end.$suffix;}}
-        $w=imagesx($im);$h=imagesy($im);
-        $mw=round($w*$perWidth/100);$nw=$w+$mw*2;$nh=$h+$mw*2;
+
+    static function addBorder($baseImg, $perWidth = 0.5, $prefix = '-', $suffix = '', $save = 1, $qual = 80)
+    {
+        if (is_array($baseImg)) extract($baseImg);
+        if (gettype($baseImg) == 'resource') {
+            $im = $baseImg;
+        } else {
+            $im = imagecreatefromjpeg($baseImg);
+            if (!$target) {
+                $fp = explode('/', $baseImg);
+                $end = array_pop($fp);
+                $fp = implode('/', $fp);
+                $target = $fp . $prefix . $end . $suffix;
+            }
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        $mw = round($w * $perWidth / 100);
+        $nw = $w + $mw * 2;
+        $nh = $h + $mw * 2;
         $tmp = imagecreatetruecolor($nw, $nh);
         $color_white = ImageColorAllocate($tmp, 255, 255, 255);
         ImageFilledRectangle($tmp, 0, 0, $nw, $nh, $color_white);
         imagecopy($tmp, $im, $mw, $mw, 0, 0, $w, $h);
-        if($save)return imagejpeg($tmp,$target,$qual);else return imagejpeg($tmp,null,$qual);
+        if ($save) return imagejpeg($tmp, $target, $qual); else return imagejpeg($tmp, null, $qual);
     }
-    
-    static function cropTo($baseImg,$ratio=16/9,$position='center',$prefix='-',$suffix='',$save=1,$qual=80,$target='',$allowVertical=0){
-        if(is_array($baseImg))extract($baseImg);
-        if(gettype($baseImg)=='resource')$im =$baseImg;else{$im=imagecreatefromjpeg($baseImg);if(!$target){$fp=explode('/',$baseImg);$end=array_pop($fp);$fp=implode('/',$fp);$target=$fp.$prefix.$end.$suffix;}}
-        $w=imagesx($im);$h=imagesy($im);
-        $cropH=$horizontal=1;if($h>$w)$horizontal=0;if($ratio<1)$cropH=0;
-        $x=$y=0;#début:non défini : haut gauche de l'image
-        $nh=$h;$nw=$ratio*$h;
-        if($allowVertical and !$horizontal){#on inverse le ratio
-            $nw=$w;$nh=$ratio*$w;
-            if($nh>$h){#phpx $td/g.php cropTo verticalNebulae.jpg $r $s
-                $nh=$h;$nw=$h/$ratio;
-            }   
-        }if($nw>$w){#nous n'avons pas cette ressource disponible
-            $nw=$w;$nh=$w/$ratio;
-        }else{#la place existe, le souhait est-il vertical ?
-        
+
+    static function cropTo($baseImg, $ratio = 16 / 9, $position = 'center', $prefix = '-', $suffix = '', $save = 1, $qual = 80, $target = '', $allowVertical = 0)
+    {
+        if (is_array($baseImg)) extract($baseImg);
+        if (gettype($baseImg) == 'resource') $im = $baseImg; else {
+            $im = imagecreatefromjpeg($baseImg);
+            if (!$target) {
+                $fp = explode('/', $baseImg);
+                $end = array_pop($fp);
+                $fp = implode('/', $fp);
+                $target = $fp . $prefix . $end . $suffix;
+            }
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        $cropH = $horizontal = 1;
+        if ($h > $w) $horizontal = 0;
+        if ($ratio < 1) $cropH = 0;
+        $x = $y = 0;#début:non défini : haut gauche de l'image
+        $nh = $h;
+        $nw = $ratio * $h;
+        if ($allowVertical and !$horizontal) {#on inverse le ratio
+            $nw = $w;
+            $nh = $ratio * $w;
+            if ($nh > $h) {#phpx $td/g.php cropTo verticalNebulae.jpg $r $s
+                $nh = $h;
+                $nw = $h / $ratio;
+            }
+        }
+        if ($nw > $w) {#nous n'avons pas cette ressource disponible
+            $nw = $w;
+            $nh = $w / $ratio;
+        } else {#la place existe, le souhait est-il vertical ?
+
         }
 
-        if($position=='center'){
-            $y=$h/2-$nh/2;
-            $x=$w/2-$nw/2;
+        if ($position == 'center') {
+            $y = $h / 2 - $nh / 2;
+            $x = $w / 2 - $nw / 2;
         }
 
-        $rect=['x' => $x, 'y' => $y, 'width' => $nw, 'height' => $nh];
-        $res=imagecrop($im,$rect);
-        if($save)return imagejpeg($res,$target,$qual);else return imagejpeg($res,null,$qual);
+        $rect = ['x' => $x, 'y' => $y, 'width' => $nw, 'height' => $nh];
+        $res = imagecrop($im, $rect);
+        if ($save) return imagejpeg($res, $target, $qual); else return imagejpeg($res, null, $qual);
     }
-    
-    static function containIn($baseImg,$ratio=16/9,$position='center',$prefix='-',$suffix='',$save=1,$qual=80,$target='',$allowVertical=0){
-        if(is_array($baseImg))extract($baseImg);
-        if(gettype($baseImg)=='resource')$im =$baseImg;else{$im=imagecreatefromjpeg($baseImg);if(!$target){$fp=explode('/',$baseImg);$end=array_pop($fp);$fp=implode('/',$fp);$target=$fp.$prefix.$end.$suffix;}}
-        $w=imagesx($im);$h=imagesy($im);
-        $cropH=$horizontal=1;if($h>$w)$horizontal=0;if($ratio<1)$cropH=0;
-        $cur=$w/$h;$nw=$w;$nh=$h;$ow=$oh=0;
-        if($allowVertical and !$horizontal){$ratio=1/$ratio;$cur=1/$cur;/*$nw=$w;$nh=$ratio*$w;*/}#inversion ratio du souhait   
-        if($ratio>$cur){#le souhait est plus large que l'image
-            $nw=round($h*$ratio);$ow=round(($nw-$w)/2);
-        }else{#le souhait est plus haut que l'image
-            $nh=round($w/$ratio);$oh=round(($nh-$h)/2);
+
+    static function containIn($baseImg, $ratio = 16 / 9, $position = 'center', $prefix = '-', $suffix = '', $save = 1, $qual = 80, $target = '', $allowVertical = 0)
+    {
+        if (is_array($baseImg)) extract($baseImg);
+        if (gettype($baseImg) == 'resource') $im = $baseImg; else {
+            $im = imagecreatefromjpeg($baseImg);
+            if (!$target) {
+                $fp = explode('/', $baseImg);
+                $end = array_pop($fp);
+                $fp = implode('/', $fp);
+                $target = $fp . $prefix . $end . $suffix;
+            }
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        $cropH = $horizontal = 1;
+        if ($h > $w) $horizontal = 0;
+        if ($ratio < 1) $cropH = 0;
+        $cur = $w / $h;
+        $nw = $w;
+        $nh = $h;
+        $ow = $oh = 0;
+        if ($allowVertical and !$horizontal) {
+            $ratio = 1 / $ratio;
+            $cur = 1 / $cur;/*$nw=$w;$nh=$ratio*$w;*/
+        }#inversion ratio du souhait
+        if ($ratio > $cur) {#le souhait est plus large que l'image
+            $nw = round($h * $ratio);
+            $ow = round(($nw - $w) / 2);
+        } else {#le souhait est plus haut que l'image
+            $nh = round($w / $ratio);
+            $oh = round(($nh - $h) / 2);
         }
         #print_r(compact('w','h','nw','nh','target','save','allowVertical'));
         $tmp = imagecreatetruecolor($nw, $nh);
         $color_white = ImageColorAllocate($tmp, 255, 255, 255);
         ImageFilledRectangle($tmp, 0, 0, $nw, $nh, $color_white);
         imagecopy($tmp, $im, $ow, $oh, 0, 0, $w, $h);
-        if($save)return imagejpeg($tmp,$target,$qual);else return imagejpeg($tmp,null,$qual);
+        if ($save) return imagejpeg($tmp, $target, $qual); else return imagejpeg($tmp, null, $qual);
     }
 }
 
