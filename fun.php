@@ -1082,7 +1082,8 @@ class fun /* extends base */
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
             fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
             if (isset($_ENV['dieOnFirstError'])) {
-                print_r(compact('err', 'sql', 'd'));
+                $_ENV['_die']=print_r(compact('err', 'sql', 'd'),1);
+                echo $_ENV['_die'];
                 fun::_die('first sql error');
             }
             return [];
@@ -1140,7 +1141,6 @@ class fun /* extends base */
         $_ENV['_sql'][$sql] = $res;
         return $res;
     }
-
     static function nocache()
     {
         header("Expires: on, 23 Feb 1983 19:37:15 GMT");
