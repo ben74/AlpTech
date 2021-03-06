@@ -58,6 +58,7 @@ class io
         }
         try {
             $x = @json_decode($string, $asArray);
+            $a=1;
         } catch (\JsonException $exception) {
             io::fap(fun::getConf('logs') . '.json.log', "\n" . print_r($exception, 1), 8);
             $_ENV['_err']['jsondecode'][] = $exception;
