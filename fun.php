@@ -1124,8 +1124,10 @@ class fun /* extends base */
                         }
                     }
                 }
+
                 if (isset($x['unikk'])) return $x['unikk'];#single expectation return result
-                if (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
+                elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
+                elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
                 else $res[] = $x;
             }
         }
