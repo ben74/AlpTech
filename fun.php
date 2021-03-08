@@ -8,6 +8,7 @@ class fun /* extends base */
 
     static function breakpoint($x)
     {
+        $args = func_get_args();
         $breakpoint = 'here';
     }
 
@@ -877,7 +878,7 @@ class fun /* extends base */
         foreach ($z as &$v) {
             if (0 and $v === "'0'") {
                 $v = 0;
-            } elseif ($v and in_array(strtolower($v), ['now()'])) {#keep
+            } elseif ($v and in_array(strtolower($v), ['?', 'now()'])) {#keep
             } elseif ($v and strpos(strtolower($v), 'convert(') !== FALSE) {
             } elseif ($v and strpos(strtolower($v), 'binary(') !== FALSE) {
             } elseif ($v and !is_numeric($v)) {
@@ -1025,9 +1026,10 @@ class fun /* extends base */
     }
 
 #fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
-    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0)
+    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [])
     {
         if ($try > 3) return;
+        $stmt = 0;
         $baseConf = $sql;
         $s = fun::getConf($conf);
         $names = $s['names'];
@@ -1068,7 +1070,23 @@ class fun /* extends base */
             mysqli_query($_ENV[$k], 'SET NAMES ' . $names);#db encoding
         }
 
-        $x2 = mysqli_query($_ENV[$k], $sql);
+        if ($params) {
+            if ($stmt = mysqli_prepare($_ENV[$k], $sql)) {#"SELECT District FROM City WHERE Name=?"
+                $types = [];
+                foreach ($params as $v) {
+                    if (gettype($v) == 'integer') $types[] = 'i';
+                    else $types[] = 's';
+                }
+                #array_unshift(implode('',$types),$params);
+                $ops = array_merge([$stmt, implode('', $types)], $params);
+                call_user_func_array('mysqli_stmt_bind_param', $ops);#mefiat si plusieurs valeurs == same ..
+                #mysqli_stmt_bind_param($stmt, implode('',$types), $v);
+                mysqli_stmt_execute($stmt);
+            }
+        } else {
+            $x2 = mysqli_query($_ENV[$k], $sql);
+        }
+
         $err = \mysqli_error($_ENV[$k]);
         if ($err and !$ignoreErrors) {
             if ($err == 'MySQL server has gone away') {#
@@ -1076,13 +1094,14 @@ class fun /* extends base */
                 $x = fun::sql($baseConf, $conf, $charset, $port, $ignoreErrors, $try + 1);
                 return $x;
             }
+            fun::breakpoint('sql error', $sql, $err);
             $_ENV['_sql'][$sql] = $_ENV['_err']['sql'][$sql] = $err;
             $a = 1;
             $d = debug_backtrace(-2);
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
             fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
             if (isset($_ENV['dieOnFirstError'])) {
-                $_ENV['_die']=print_r(compact('err', 'sql', 'd'),1);
+                $_ENV['_die'] = print_r(compact('err', 'sql', 'd'), 1);
                 echo $_ENV['_die'];
                 fun::_die('first sql error');
             }
@@ -1094,7 +1113,11 @@ class fun /* extends base */
         }
         if (Preg_match("~(create|update|alter|delete|replace) ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
-            $nb = Mysqli_affected_rows($_ENV[$k]);
+            if ($stmt) {
+                $nb = $stmt->affected_rows;
+                mysqli_stmt_close($stmt);
+            } else
+                $nb = Mysqli_affected_rows($_ENV[$k]);
             $_ENV['_sql'][$sql] = $nb;
             if (!$nb) {
                 return -999;
@@ -1102,7 +1125,10 @@ class fun /* extends base */
             return $nb;
         } elseif (Preg_match("~insert ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
-            $id = Mysqli_insert_id($_ENV[$k]);
+            if ($stmt) {
+                $id = $stmt->insert_id;
+                mysqli_stmt_close($stmt);
+            } else $id = Mysqli_insert_id($_ENV[$k]);
             $_ENV['_sql'][$sql] = $id;
             if (!$id) {
                 return -999;
@@ -1110,12 +1136,16 @@ class fun /* extends base */
             return $id;
         }
 
-        if (is_bool($x2)) {#use
+        if (isset($x2) and is_bool($x2)) {#use
             $_ENV['_sql'][$sql] = 1;
             return $sql;
         }
 
         $res = [];
+        if ($stmt) {
+            $x2 = mysqli_stmt_get_result($stmt);
+            mysqli_stmt_close($stmt);
+        }
         if ($x2) {
             while ($x = @mysqli_fetch_assoc($x2)) {
                 if ($search) {
@@ -1141,6 +1171,7 @@ class fun /* extends base */
         $_ENV['_sql'][$sql] = $res;
         return $res;
     }
+
     static function nocache()
     {
         header("Expires: on, 23 Feb 1983 19:37:15 GMT");
