@@ -312,6 +312,7 @@ class fun /* extends base */
         if (is_array($url)) {
             extract($url);
         }
+        $url=str_replace(' ','%20',$url);#no urlencode ..
         $ch = \curl_init();
         $headers[] = 'Expect:';/*100 header*/
         if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
@@ -673,7 +674,7 @@ class fun /* extends base */
         } else {
             if (isset($vertical_center) or isset($horizontal_center)) {
                 if (isset($background_color)) {
-                    $hex2rgb = $this->hex2rgb2($background_color);
+                    $hex2rgb = static::hex2rgb2($background_color);
                     $color = imagecolorallocate($tmp, $hex2rgb[0], $hex2rgb[1], $hex2rgb[2]); //filled in white
                     imagefilledrectangle($tmp, 0, 0, $width, $height, $color);
                 }
@@ -1284,11 +1285,11 @@ class fun /* extends base */
     {
         if ($obj) {
             $el = $obj;
-        } elseif (!isset($this)) {
+        }/* elseif (!isset($this)) {# if in object context
             $el = static::i();
         } else {#is declared object
             $el = $this;
-        }
+        }*/
         if (!$p) {
             return $el;
         }
