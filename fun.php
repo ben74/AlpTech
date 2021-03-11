@@ -1102,9 +1102,11 @@ class fun /* extends base */
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
             fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
             if (isset($_ENV['dieOnFirstError'])) {
-                $_ENV['_die'] = print_r(compact('err', 'sql', 'd'), 1);
+                $d1=end($d);
+                $dies=$d1['file'].'::'.$d1['line'];
+                $_ENV['_die'] = print_r(compact('dies','err', 'sql', 'd'), 1);
                 echo $_ENV['_die'];
-                fun::_die('first sql error');
+                fun::_die('first sql error :: '.$dies);
             }
             return [];
         }
