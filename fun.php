@@ -312,7 +312,7 @@ class fun /* extends base */
         if (is_array($url)) {
             extract($url);
         }
-        $url=str_replace(' ','%20',$url);#no urlencode ..
+        $url = str_replace(' ', '%20', $url);#no urlencode ..
         $ch = \curl_init();
         $headers[] = 'Expect:';/*100 header*/
         if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
@@ -1102,11 +1102,11 @@ class fun /* extends base */
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
             fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
             if (isset($_ENV['dieOnFirstError'])) {
-                $d1=end($d);
-                $dies=$d1['file'].'::'.$d1['line'];
-                $_ENV['_die'] = print_r(compact('dies','err', 'sql', 'd'), 1);
+                $d1 = end($d);
+                $dies = $d1['file'] . '::' . $d1['line'];
+                $_ENV['_die'] = print_r(compact('dies', 'err', 'sql', 'd'), 1);
                 echo $_ENV['_die'];
-                fun::_die('first sql error :: '.$dies);
+                fun::_die('first sql error :: ' . $dies);
             }
             return [];
         }
@@ -1539,6 +1539,19 @@ class fun /* extends base */
         ImageFilledRectangle($tmp, 0, 0, $nw, $nh, $color_white);
         imagecopy($tmp, $im, $ow, $oh, 0, 0, $w, $h);
         if ($save) return imagejpeg($tmp, $target, $qual); else return imagejpeg($tmp, null, $qual);
+    }
+
+    static function asciiToUtf($x)
+    {
+        $x1 = str_split($x);
+        foreach ($x1 as &$t) {
+            $t = ord($t);
+        }
+        $max = max($x1);
+        if ($max > 195) {
+            $x = utf8_encode($x);
+        }
+        return $x;
     }
 }
 
