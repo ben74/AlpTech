@@ -1555,14 +1555,21 @@ class fun /* extends base */
         return $x;
     }
 
-    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $distantFile, $localFile, $port = 21, $timeout = 99, $ssl = 0, $mode = FTP_ASCII)
+    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $localFile, $distantFile, $port = 21, $ssl = 0, $timeout = 99, $mode = FTP_ASCII, $passive = 1)
     {
         if (is_array($ftp_server)) extract($ftp_server);
-        if ($ssl) $conn_id = ftp_ssl_connect($ftp_server, $port, $timeout);
-        else $conn_id = ftp_connect($ftp_server, $port, $timeout);
+        if ($ssl) {
+            $conn_id = ftp_ssl_connect($ftp_server, $port, $timeout);
+        } else {
+            $conn_id = ftp_connect($ftp_server, $port, $timeout);
+        }
+        if (!$conn_id) {
+            return 0;
+        }
 
         $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
         if (!$login_result) return 0;
+        if ($passive) ftp_pasv($conn_id, true);
         if (ftp_put($conn_id, $distantFile, $localFile, $mode)) {
             return 1;
         }
