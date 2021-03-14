@@ -1553,6 +1553,20 @@ class fun /* extends base */
         }
         return $x;
     }
+
+    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $remote_file, $distantFile, $port = 21, $timeout = 99, $ssl = 0, $mode = FTP_ASCII)
+    {
+        if (is_array($ftp_server)) extract($ftp_server);
+        if ($ssl) $conn_id = ftp_ssl_connect($ftp_server, $port, $timeout);
+        else $conn_id = ftp_connect($ftp_server, $port, $timeout);
+
+        $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
+        if (!$login_result) return 0;
+        if (ftp_put($conn_id, $remote_file, $distantFile, $mode)) {
+            return 1;
+        }
+        return 0;
+    }
 }
 
 return; ?>
