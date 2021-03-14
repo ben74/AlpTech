@@ -1541,6 +1541,7 @@ class fun /* extends base */
         if ($save) return imagejpeg($tmp, $target, $qual); else return imagejpeg($tmp, null, $qual);
     }
 
+#see http://www.asciitable.com/ for references, accents range 128 to 165, weird caracters begins from 169 to 255
     static function asciiToUtf($x)
     {
         $x1 = str_split($x);
@@ -1554,7 +1555,7 @@ class fun /* extends base */
         return $x;
     }
 
-    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $remote_file, $distantFile, $port = 21, $timeout = 99, $ssl = 0, $mode = FTP_ASCII)
+    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $distantFile, $localFile, $port = 21, $timeout = 99, $ssl = 0, $mode = FTP_ASCII)
     {
         if (is_array($ftp_server)) extract($ftp_server);
         if ($ssl) $conn_id = ftp_ssl_connect($ftp_server, $port, $timeout);
@@ -1562,7 +1563,7 @@ class fun /* extends base */
 
         $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
         if (!$login_result) return 0;
-        if (ftp_put($conn_id, $remote_file, $distantFile, $mode)) {
+        if (ftp_put($conn_id, $distantFile, $localFile, $mode)) {
             return 1;
         }
         return 0;
