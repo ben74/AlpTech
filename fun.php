@@ -1085,6 +1085,9 @@ class fun /* extends base */
                 mysqli_stmt_execute($stmt);
             }
         } else {
+            if (!$sql) {
+                return;
+            }
             $x2 = mysqli_query($_ENV[$k], $sql);
         }
 
@@ -1159,7 +1162,9 @@ class fun /* extends base */
                     }
                 }
 
-                if (isset($x['unikk'])) return $x['unikk'];#single expectation return result
+                if (isset($x['ARRAYK']) and isset($x['unikk'])) $res[$x['ARRAYK']] = $x['unikk'];
+                elseif (isset($x['ARRAYK'])) $res[$x['ARRAYK']] = $x;#multiple res per keys
+                elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
                 elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
                 elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
                 elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
@@ -1555,9 +1560,13 @@ class fun /* extends base */
         return $x;
     }
 
-    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $localFile, $distantFile, $port = 21, $ssl = 0, $timeout = 99, $mode = FTP_ASCII, $passive = 1)
+    static function ftpput($ftp_server, $ftp_user_name, $ftp_user_pass, $localFile, $distantFile, $port = 21, $ssl = 0, $timeout = 999, $mode = FTP_ASCII, $passive = 1)
     {
         if (is_array($ftp_server)) extract($ftp_server);
+        if (!is_file($localFile)) {
+            echo "\n!$localFile";
+            return;
+        }
         if ($ssl) {
             $conn_id = ftp_ssl_connect($ftp_server, $port, $timeout);
         } else {
@@ -1568,12 +1577,18 @@ class fun /* extends base */
         }
 
         $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
-        if (!$login_result) return 0;
-        if ($passive) ftp_pasv($conn_id, true);
-        if (ftp_put($conn_id, $distantFile, $localFile, $mode)) {
-            return 1;
+        if (!$login_result) {
+            return 0;
         }
-        return 0;
+
+        #$list=ftp_nlist($conn_id,'.');#rawlist
+        $ret = 0;
+        if ($passive) ftp_pasv($conn_id, true);
+        if ($x = ftp_put($conn_id, $distantFile, $localFile, $mode)) {
+            $ret = 1;
+        }
+        ftp_close($conn_id);
+        return $ret;
     }
 }
 
