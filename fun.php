@@ -1167,7 +1167,7 @@ class fun /* extends base */
                 } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
                     $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
                 } elseif (isset($x['ARRAYK'])) {
-                    $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK', $x['ARRAYK']]);#multiple res per keys
+                    $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
                 } elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
                 elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
                 elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
