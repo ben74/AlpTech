@@ -1126,7 +1126,7 @@ class fun /* extends base */
                 $nb = Mysqli_affected_rows($_ENV[$k]);
             $_ENV['_sql'][$sql] = $nb;
             if (!$nb) {
-                return -999;
+                return 0;
             }
             return $nb;
         } elseif (Preg_match("~insert ~i", $sql)) {
@@ -1236,6 +1236,7 @@ class fun /* extends base */
 
     static function getBody()
     {
+        if (!isset($_SERVER['CONTENT_LENGTH'])) return;
         if (isset($_ENV['phpinput']) and $_ENV['phpinput']) return $_ENV['phpinput'];#once then destroy
         $_ENV['phpinput'] = trim(file_get_contents('php://input', false, stream_context_get_default(), 0, $_SERVER['CONTENT_LENGTH']), "\n\r \0");
         return $_ENV['phpinput'];
