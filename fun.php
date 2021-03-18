@@ -1027,7 +1027,7 @@ class fun /* extends base */
     }
 
 #fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
-    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [])
+    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0)
     {
         if ($try > 3) return;
         $stmt = 0;
@@ -1069,6 +1069,10 @@ class fun /* extends base */
         }
         if (0 and $names and $names != $_ENV[$k]) {
             mysqli_query($_ENV[$k], 'SET NAMES ' . $names);#db encoding
+        }
+
+        if ($intercepts) {
+            $intercepts('sql', $sql);
         }
 
         if ($params) {
