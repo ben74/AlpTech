@@ -1045,7 +1045,8 @@ class fun /* extends base */
         if (!isset($_ENV[$k])) {#mysqlclose on shutdown
             $_c = $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
             if (!$_c) {
-                fun::breakpoint('connection error');
+                $_e = \mysqli_connect_error($_ENV[$k]);
+                fun::breakpoint('connection error', $_e);
                 print_r($s);
                 die('connection error');
             }
@@ -1241,6 +1242,7 @@ class fun /* extends base */
     static function getBody()
     {
         if (!isset($_SERVER['CONTENT_LENGTH'])) return;
+        if (!$_SERVER['CONTENT_LENGTH']) return;
         if (isset($_ENV['phpinput']) and $_ENV['phpinput']) return $_ENV['phpinput'];#once then destroy
         $_ENV['phpinput'] = trim(file_get_contents('php://input', false, stream_context_get_default(), 0, $_SERVER['CONTENT_LENGTH']), "\n\r \0");
         return $_ENV['phpinput'];
@@ -1598,6 +1600,206 @@ class fun /* extends base */
         }
         ftp_close($conn_id);
         return $ret;
+    }
+
+    /* } memcached --  redis .. { */
+    static function ismemcacheon()
+    {
+        #return false;
+        if (isset($_ENV['memcachedc'])) {
+            return $_ENV['memcachedc'];
+        }
+        if (!function_exists('memcache_connect')) {
+            $_ENV['memcachedc'] = false;
+            return $_ENV['memcachedc'];
+        }
+        if (!isset($_ENV['memcachedc'])) {
+            $_ENV['memcachedc'] = false;
+            #return false;
+            try {
+                $_ENV['memcachedc'] = @memcache_connect('127.0.0.1', 11211);
+                $a = 1;
+            } catch (\Exception $e) {
+                $_ENV['memcachedc'] = false;
+            }
+            return $_ENV['memcachedc'];#false
+        }
+    }
+
+    static function fgcs($f, $expiration = 0)
+    {
+        $memc = fun::ismemcacheon();
+        if ($memc) {
+            $x = explode('/', $f);
+            $x = end($x);
+            $res = memcache_get($memc, $x);
+            if ($res) {
+                return $res;
+            }
+        } else {
+            rc();
+            return rg($x);
+        }
+#fallback
+        if (!$expiration) {
+            $expiration = 999999;#10 days for files
+        }
+        if (!is_file($f)) {
+            return null;
+        }
+        $fmt = filemtime($f);
+        if ($fmt < ($_ENV['now'] - $expiration) and 'fallback : filecache is expired') {
+            return null;
+        }
+
+        if (strpos($f, '.json')) {
+            return json_decode(fgc($f), 1);
+        }
+
+        if (isset($_ENV['igb']) and $_ENV['igb'] && function_exists('igbinary_unserialize')) {#about 2 to 3 times faster, but can't flush cache based on inner contents then
+            return igbinary_unserialize(fgc($f));
+        }
+        return unserialize(fgc($f));#can grep its contents, memory limit reached no gzip
+    }
+
+    static function FPCS($f, $d, $expiration = 0 /*never for opcache*/)
+    {
+        $memc = fun::ismemcacheon();
+        if ($memc) {
+            $x = explode('/', $f);
+            $x = end($x);
+            #beware, as he doesnt accept values > 100Mo
+            $ok = memcache_set($memc, $x, $d, 0/*MEMCACHE_COMPRESSED?*/, $expiration);
+            if ($ok) {
+                $d = null;
+                return $ok;
+            }
+        } else {
+            rc();
+            return rs($f, $d);
+        }
+        if (strpos($f, '.json')) {
+            $r = fpc($f, json_encode($d, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $d = null;#free the ram please
+            return $r;
+        }
+        if ($_ENV['igb'] && function_exists('igbinary_serialize')) {
+            $d = igbinary_serialize($d);
+        } else {
+            $d = serialize($d);
+        }
+        if (0 && strlen($d) > 9000000 and 'why is this cyclic somehow? something is wrong here ( o2a )') {
+            $x = debug_backtrace();
+            foreach ($x as &$v) $v = $v['file'] . $v['line'];
+            unset($v);
+            print_r($x);
+            die;
+        }
+        $r = fpc($f, $d);
+        $d = null;#free the ram please
+        return $r;
+    }
+
+    /** either file or memcache key */
+    static function FDM($f)
+    {
+        $memc = fun::ismemcacheon();
+        if ($memc) {
+            $x = explode('/', $f);
+            $x = end($x);
+            memcache_delete($memc, $x);
+        } else {
+            rc();
+            return rd($f);
+        }
+        if (is_file($f)) {
+            unlink($f);
+        }
+    }
+
+    /** sets memcache or file */
+    static function FPCM($f, $d, $flag = null)
+    {
+        $memc = fun::ismemcacheon();
+        if ($memc) {
+            $x = explode('/', $f);
+            $x = end($x);
+            if ($flag == 8 && 'append') {#https://www.php.net/manual/fr/memcached.append.php, memcache_increment().
+                $exists = memcache_get($memc, $x);
+                if ($exists) {
+                    $d = $exists . $d;
+                }
+            }
+            $ok = memcache_set($memc, $x, $d, 0, 0);
+            if ($ok) {
+                $d = null;
+                return $ok;
+            }
+        } else {
+            rc();
+            return rs($f, $d);
+        }
+        return FPC($f, $d, $flag);
+    }
+
+    /** returns memcache or file */
+    static function fgcm($f)
+    {
+        $memc = fun::ismemcacheon();
+        if ($memc) {
+            $x = explode('/', $f);
+            $x = end($x);
+            $res = memcache_get($memc, $x);
+            if ($res) {
+                return $res;
+            }
+        } else {
+            rc();
+            return rg($f);
+        }
+        return fgc($f);
+    }
+
+    static function rc()
+    {
+        if (isset($_ENV['rc'])) return;
+        if (!class_exists('redis')) {
+            $_ENV['rce'] = 'no redis';
+            $_ENV['rc'] = new redisfs();
+            return;
+        }
+        try {
+            $_ENV['rc'] = new \Redis();
+            $_ENV['rc']->connect($_ENV['redis']['h'], $_ENV['redis']['p']);
+        } catch (\Exception $e) {
+            $_ENV['rce'] = $e;
+            $_ENV['rc'] = new redisfs();
+        }
+        if (isset($_ENV['redis']['pw'])) $_ENV['rc']->auth($_ENV['redis']['pw']);
+    }
+
+    static function rs($k, $v)
+    {
+        fun::rc();
+        $_ENV['rc']->set($k, $v);
+    }
+
+    static function rk($k = '*')
+    {
+        fun::c();
+        return $_ENV['rc']->keys($k);
+    }
+
+    static function rg($k)
+    {
+        fun::rc();
+        return $_ENV['rc']->get($k);
+    }
+
+    static function rd($k)
+    {
+        fun::rc();
+        return $_ENV['rc']->del($k);
     }
 }
 
