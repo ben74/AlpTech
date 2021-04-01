@@ -1058,7 +1058,7 @@ class fun /* extends base */
                 $a = 1;
                 #mysqli_select_db($_c,'superadmin');
             }
-            if (0 and $names) {
+            if (1 and $names) {
                 $ok = mysqli_query($_ENV[$k], "SET NAMES '" . $names . "'");
                 $a = 1;
             }#db encoding
