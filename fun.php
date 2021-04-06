@@ -1027,7 +1027,7 @@ class fun /* extends base */
     }
 
 #fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
-    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0)
+    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0)
     {
         if ($try > 3) return;
         $stmt = 0;
@@ -1047,7 +1047,7 @@ class fun /* extends base */
             if (!$_c) {
                 $_e = \mysqli_connect_error($_ENV[$k]);
                 fun::breakpoint('connection error', $_e);
-                print_r($s);
+                #print_r($s);
                 die('connection error');
             }
             if (isset($_c->error) and $_c->error) {
@@ -1109,7 +1109,7 @@ class fun /* extends base */
             $d = debug_backtrace(-2);
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
             fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
-            if (isset($_ENV['dieOnFirstError'])) {
+            if (!$allowError and isset($_ENV['dieOnFirstError']) and $_ENV['dieOnFirstError']) {
                 $d1 = end($d);
                 $dies = $d1['file'] . '::' . $d1['line'];
                 $_ENV['_die'] = print_r(compact('dies', 'err', 'sql', 'd'), 1);
