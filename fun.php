@@ -1038,6 +1038,7 @@ class fun /* extends base */
             extract($sql);
             if (isset($s)) extract($s);
         }#overrides
+        $sql = trim($sql);
         if (!isset($s['h'])) {
             $a = 1;
         }
@@ -1122,7 +1123,7 @@ class fun /* extends base */
             $_ENV['stop'] = 0;
             $a = 1;
         }
-        if (Preg_match("~(create|update|alter|delete|replace) ~i", $sql)) {
+        if (Preg_match("~^(create|update|alter|delete|replace) ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             if ($stmt) {
                 $nb = $stmt->affected_rows;
@@ -1134,7 +1135,7 @@ class fun /* extends base */
                 return 0;
             }
             return $nb;
-        } elseif (Preg_match("~insert ~i", $sql)) {
+        } elseif (Preg_match("~^insert ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             if ($stmt) {
                 $id = $stmt->insert_id;
