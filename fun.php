@@ -296,15 +296,16 @@ class fun /* extends base */
         return $found;
     }
 
-    static function curlFile($url, $file, $name = '', $headers = [])
+    static function curlFile($url, $file, $name = '', $headers = [], $timeout = 999)
     {
+        if(is_array($url))extract($url);
         #die(realpath($file));
         if (!$name) {
             $name = basename($file);
         }#enctype : multipoart
         #$files=['file' => '@' . realpath($file).';filename='.$name];#does not sends files
         $files = ['file' => curl_file_create($file, '.jpg', $name)];#gives : error: operation aborted by callback
-        return fun::cup(['url' => $url, 'post' => $files, 'headers' => ['content-type: multipart/form-data'], 'headers' => $headers]);
+        return fun::cup(['url' => $url, 'post' => $files, 'headers' => $headers + ['content-type: multipart/form-data'], 'timeout'=>$timeout]);
     }
 
     static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 10, $unsecure = 1, $forcePort = 0, $follow = 1)
@@ -1585,11 +1586,13 @@ class fun /* extends base */
             $conn_id = ftp_connect($ftp_server, $port, $timeout);
         }
         if (!$conn_id) {
+            echo'nocon';
             return 0;
         }
 
         $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
         if (!$login_result) {
+            echo'logfailed';
             return 0;
         }
 
