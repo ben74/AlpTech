@@ -298,14 +298,13 @@ class fun /* extends base */
 
     static function curlFile($url, $file, $name = '', $headers = [], $timeout = 999)
     {
-        if(is_array($url))extract($url);
-        #die(realpath($file));
+        if (is_array($url)) extract($url);
         if (!$name) {
             $name = basename($file);
         }#enctype : multipoart
         #$files=['file' => '@' . realpath($file).';filename='.$name];#does not sends files
         $files = ['file' => curl_file_create($file, '.jpg', $name)];#gives : error: operation aborted by callback
-        return fun::cup(['url' => $url, 'post' => $files, 'headers' => $headers + ['content-type: multipart/form-data'], 'timeout'=>$timeout]);
+        return fun::cup(['url' => $url, 'post' => $files, 'headers' => $headers + ['content-type: multipart/form-data'], 'timeout' => $timeout]);
     }
 
     static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 10, $unsecure = 1, $forcePort = 0, $follow = 1)
@@ -1028,50 +1027,69 @@ class fun /* extends base */
     }
 
 #fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
-    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0)
+    static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0)
     {
-        if ($try > 3) return;
-        $stmt = 0;
         $baseConf = $sql;
         $s = fun::getConf($conf);
         $names = $s['names'];
         if (is_array($sql)) {
             extract($sql);
-            if (isset($s)) extract($s);
+            if (is_array($sql) and !isset($sql['sql'])) {
+                $sql = 0;#not within extration
+            }
+            #unset($sql);
+            if (isset($s)) {#encore des confs nesteés
+                extract($s);
+            }
         }#overrides
+
+        if ($try > 3) return;
+        $stmt = 0;
+
         $sql = trim($sql);
         if (!isset($s['h'])) {
             $a = 1;
         }
-        $k = 'sqlc:' . $s['h'] . ':' . $s['db'] . ':' . $names . ':' . $port;
-        if (!isset($_ENV[$k])) {#mysqlclose on shutdown
-            $_c = $_ENV[$k] = mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
-            if (!$_c) {
-                $_e = \mysqli_connect_error($_ENV[$k]);
-                fun::breakpoint('connection error', $_e);
-                #print_r($s);
-                die('connection error');
+
+        if (!$connection) {
+            $k = 'sqlc:' . $s['h'] . ':' . $s['db'] . ':' . $names . ':' . $port;
+            if (isset($_ENV[$k])) {
+                $connection = $_ENV[$k];
             }
-            if (isset($_c->error) and $_c->error) {
-                fun::breakpoint($_c);
+            if (!isset($_ENV[$k])) {#mysqlclose on shutdown
+                $_c = $_ENV[$k] = $connection = mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
+                if (!$_c) {
+                    $_e = \mysqli_connect_error($connection);
+                    fun::breakpoint('connection error', $_e);
+                    #print_r($s);
+                    die('connection error');
+                }
+                if (isset($_c->error) and $_c->error) {
+                    fun::breakpoint($_c);
+                }
+                $_ok = mysqli_select_db($connection, $s['db']);
+                if (!$_ok) {
+                    $a = 1;
+                    #mysqli_select_db($_c,'superadmin');
+                }
+                if (1 and $names) {
+                    $ok = mysqli_query($connection, "SET NAMES '" . $names . "'");
+                    $a = 1;
+                }#db encoding
+                if ($charset) {
+                    $__ok = mysqli_set_charset($connection, $charset);
+                    $a = 1;
+                    #mysqli_query($connection,"SET charset '".$charset."'");
+                }
             }
-            $_ok = mysqli_select_db($_ENV[$k], $s['db']);
-            if (!$_ok) {
-                $a = 1;
-                #mysqli_select_db($_c,'superadmin');
+            if (0 and $names and $names != $connection) {
+                mysqli_query($connection, 'SET NAMES ' . $names);#db encoding
             }
-            if (1 and $names) {
-                $ok = mysqli_query($_ENV[$k], "SET NAMES '" . $names . "'");
-                $a = 1;
-            }#db encoding
-            if ($charset) {
-                $__ok = mysqli_set_charset($_ENV[$k], $charset);
-                $a = 1;
-                #mysqli_query($_ENV[$k],"SET charset '".$charset."'");
-            }
+
         }
-        if (0 and $names and $names != $_ENV[$k]) {
-            mysqli_query($_ENV[$k], 'SET NAMES ' . $names);#db encoding
+
+        if (!$sql) {
+            return $connection;#simple connection
         }
 
         if ($intercepts) {
@@ -1079,7 +1097,7 @@ class fun /* extends base */
         }
 
         if ($params) {
-            if ($stmt = mysqli_prepare($_ENV[$k], $sql)) {#"SELECT District FROM City WHERE Name=?"
+            if ($stmt = mysqli_prepare($connection, $sql)) {#"SELECT District FROM City WHERE Name=?"
                 $types = [];
                 foreach ($params as $v) {
                     if (gettype($v) == 'integer') $types[] = 'i';
@@ -1095,10 +1113,10 @@ class fun /* extends base */
             if (!$sql) {
                 return;
             }
-            $x2 = mysqli_query($_ENV[$k], $sql);
+            $x2 = mysqli_query($connection, $sql);
         }
 
-        $err = \mysqli_error($_ENV[$k]);
+        $err = \mysqli_error($connection);
         if ($err and !$ignoreErrors) {
             if ($err == 'MySQL server has gone away') {#
                 unset($_ENV[$k]);
@@ -1111,6 +1129,9 @@ class fun /* extends base */
             $d = debug_backtrace(-2);
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
             fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
+            if ($errorCallback) {
+                return $errorCallback($sql, $err);
+            }
             if (!$allowError and isset($_ENV['dieOnFirstError']) and $_ENV['dieOnFirstError']) {
                 $d1 = end($d);
                 $dies = $d1['file'] . '::' . $d1['line'];
@@ -1130,7 +1151,7 @@ class fun /* extends base */
                 $nb = $stmt->affected_rows;
                 mysqli_stmt_close($stmt);
             } else
-                $nb = Mysqli_affected_rows($_ENV[$k]);
+                $nb = Mysqli_affected_rows($connection);
             $_ENV['_sql'][$sql] = $nb;
             if (!$nb) {
                 return 0;
@@ -1141,7 +1162,7 @@ class fun /* extends base */
             if ($stmt) {
                 $id = $stmt->insert_id;
                 mysqli_stmt_close($stmt);
-            } else $id = Mysqli_insert_id($_ENV[$k]);
+            } else $id = Mysqli_insert_id($connection);
             $_ENV['_sql'][$sql] = $id;
             if (!$id) {
                 return -999;
@@ -1586,13 +1607,13 @@ class fun /* extends base */
             $conn_id = ftp_connect($ftp_server, $port, $timeout);
         }
         if (!$conn_id) {
-            echo'nocon';
+            echo 'nocon';
             return 0;
         }
 
         $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
         if (!$login_result) {
-            echo'logfailed';
+            echo 'logfailed';
             return 0;
         }
 
