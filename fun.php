@@ -1124,6 +1124,7 @@ class fun /* extends base */
                 return $x;
             }
             fun::breakpoint('sql error', $sql, $err);
+
             $_ENV['_sql'][$sql] = $_ENV['_err']['sql'][$sql] = $err;
             $a = 1;
             $d = debug_backtrace(-2);
@@ -1132,6 +1133,11 @@ class fun /* extends base */
             if ($errorCallback) {
                 return $errorCallback($sql, $err);
             }
+
+            if (isset($_ENV['sqlException']) and $_ENV['sqlException']) {
+                throw new \Exception($err . ' - ' . $sql);
+            }
+
             if (!$allowError and isset($_ENV['dieOnFirstError']) and $_ENV['dieOnFirstError']) {
                 $d1 = end($d);
                 $dies = $d1['file'] . '::' . $d1['line'];
