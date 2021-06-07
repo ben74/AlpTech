@@ -1029,7 +1029,8 @@ class fun /* extends base */
 #fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0)
     {
-        static $nbr=0;$nbr++;
+        static $nbr = 0;
+        $nbr++;
         $start = microtime(true);
         $baseConf = $sql;
         $s = fun::getConf($conf);
@@ -1127,7 +1128,7 @@ class fun /* extends base */
             }
             fun::breakpoint('sql error', $sql, $err);
 
-            $_ENV['_sql'][$nbr.':'.$sql] = $_ENV['_err']['sql'][$sql] = $err;
+            $_ENV['_sql'][$nbr . ':' . $sql] = $_ENV['_err']['sql'][$sql] = $err;
             $a = 1;
             $d = debug_backtrace(-2);
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
@@ -1160,7 +1161,7 @@ class fun /* extends base */
                 mysqli_stmt_close($stmt);
             } else
                 $nb = Mysqli_affected_rows($connection);
-            $_ENV['_sql'][$nbr.':'.$sql]] = $nb;
+            $_ENV['_sql'][$nbr . ':' . $sql] = $nb;
             if (!$nb) {
                 return 0;
             }
@@ -1171,7 +1172,7 @@ class fun /* extends base */
                 $id = $stmt->insert_id;
                 mysqli_stmt_close($stmt);
             } else $id = Mysqli_insert_id($connection);
-            $_ENV['_sql'][$nbr.':'.$sql]] = $id;
+            $_ENV['_sql'][$nbr . ':' . $sql]] = $id;
             if (!$id) {
                 return -999;
             }
@@ -1179,7 +1180,7 @@ class fun /* extends base */
         }
 
         if (isset($x2) and is_bool($x2)) {#use
-            $_ENV['_sql'][$nbr.':'.$sql]] = 1;
+            $_ENV['_sql'][$nbr . ':' . $sql]] = 1;
             return $sql;
         }
 
@@ -1216,7 +1217,7 @@ class fun /* extends base */
             $reproductible = json_encode([$res, $sql]);
             $a = 1;
         }
-        $_ENV['_sql'][$nbr.':'.$sql] = $res;
+        $_ENV['_sql'][$nbr . ':' . $sql] = $res;
         if (isset($_ENV['_sqlT'])) {
             $_ENV['_sqlT'][$sql] = microtime(true) - $start;
         }
