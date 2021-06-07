@@ -1172,7 +1172,7 @@ class fun /* extends base */
                 $id = $stmt->insert_id;
                 mysqli_stmt_close($stmt);
             } else $id = Mysqli_insert_id($connection);
-            $_ENV['_sql'][$nbr . ':' . $sql]] = $id;
+            $_ENV['_sql'][$nbr . ':' . $sql] = $id;
             if (!$id) {
                 return -999;
             }
@@ -1180,7 +1180,7 @@ class fun /* extends base */
         }
 
         if (isset($x2) and is_bool($x2)) {#use
-            $_ENV['_sql'][$nbr . ':' . $sql]] = 1;
+            $_ENV['_sql'][$nbr . ':' . $sql] = 1;
             return $sql;
         }
 
