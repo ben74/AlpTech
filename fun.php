@@ -1225,42 +1225,75 @@ class fun /* extends base */
     }
 
 
-    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null)
+    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0)
     {
         if (is_array($h)) extract($h);
-        if (!isset($_ENV['pdo_' . $h . $db])) {
-            $_ENV['pdo_' . $h . $db] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, []);#array(PDO::ATTR_PERSISTENT => true)
-        }
-        $cnx = $_ENV['pdo_' . $h . $db];
+        try {
+            if (!isset($_ENV['pdo_' . $h . $db])) {
+                $_ENV['pdo_' . $h . $db] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, []);#array(PDO::ATTR_PERSISTENT => true)
+            }
+            $cnx = $_ENV['pdo_' . $h . $db];
+            if ($params) {
+                $cmd = $cnx->prepare($sql);
+                if ($bindParams) {
+                    foreach ($params as $k => $value) {
+                        $cmd->bindValue(
+                            is_string($k) ? $k : $k + 1, $value,
+                            is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR
+                        );
+                    }
+                    $cmd->execute();
+                } else {
+                    $cmd->execute($params);
+                }
+            } else {
+                $cmd = $cnx->query($sql);
+            }
 
-        if ($params) {
-            $cmd = $cnx->prepare($sql);
-            $cmd->execute($params);
-        } else {
-            $cmd = $cnx->query($sql);
-        }
-        $res = [];
-        while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
-            if ($search) {
-                foreach ($x as $k => $v) {
-                    if (preg_match('~' . $search . '~i', $v)) {
-                        fun::breakpoint($x);
+            if ($intercepts) {
+                $intercepts('sql', $sql);
+            }
+
+            if (Preg_match("~^(create|update|alter|delete|replace) ~i", $sql)) {
+                $_ENV['sqlm'][] = $sql;
+                $nb = $cmd->rowCount();
+                return $nb;
+            } elseif (Preg_match("~^insert ~i", $sql)) {
+                $_ENV['sqlm'][] = $sql;
+                $id = $cnx->lastInsertId();
+                if (!$id) {
+                    return -999;#M2M
+                }
+                return $id;
+            }
+
+            $res = [];
+            while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
+                if ($search) {
+                    foreach ($x as $k => $v) {
+                        if (preg_match('~' . $search . '~i', $v)) {
+                            fun::breakpoint($x);
+                        }
                     }
                 }
+                if (isset($x['ARRAYK']) and isset($x['unikk'])) {
+                    $res[$x['ARRAYK']][] = $x['unikk'];
+                } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
+                    $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
+                } elseif (isset($x['ARRAYK'])) {
+                    $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
+                } elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
+                elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
+                elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
+                elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
+                else $res[] = $x;
             }
-            if (isset($x['ARRAYK']) and isset($x['unikk'])) {
-                $res[$x['ARRAYK']][] = $x['unikk'];
-            } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
-                $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
-            } elseif (isset($x['ARRAYK'])) {
-                $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
-            } elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
-            elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
-            elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
-            elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
-            else $res[] = $x;
+            return $res;
+
+        } catch (\Throwable $_e) {
+            fun::breakpoint('sql error', $sql, $_e);
+            throw $_e;
         }
-        return $res;
     }
 
     static function nocache()
