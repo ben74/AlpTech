@@ -1128,7 +1128,7 @@ class fun /* extends base */
             }
             fun::breakpoint('sql error', $sql, $err);
 
-            $_ENV['_sql'][$nbr . ':' . $sql] = $_ENV['_err']['sql'][$sql] = $err;
+            $_ENV['_sql'][$nbr . ' : ' . $sql] = $_ENV['_err']['sql'][$sql] = $err;
             $a = 1;
             $d = debug_backtrace(-2);
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
@@ -1161,7 +1161,7 @@ class fun /* extends base */
                 mysqli_stmt_close($stmt);
             } else
                 $nb = Mysqli_affected_rows($connection);
-            $_ENV['_sql'][$nbr . ':' . $sql] = $nb;
+            $_ENV['_sql'][$nbr . ' : ' . $sql] = $nb;
             if (!$nb) {
                 return 0;
             }
@@ -1172,7 +1172,7 @@ class fun /* extends base */
                 $id = $stmt->insert_id;
                 mysqli_stmt_close($stmt);
             } else $id = Mysqli_insert_id($connection);
-            $_ENV['_sql'][$nbr . ':' . $sql] = $id;
+            $_ENV['_sql'][$nbr . ' : ' . $sql] = $id;
             if (!$id) {
                 return -999;
             }
@@ -1180,7 +1180,7 @@ class fun /* extends base */
         }
 
         if (isset($x2) and is_bool($x2)) {#use
-            $_ENV['_sql'][$nbr . ':' . $sql] = 1;
+            $_ENV['_sql'][$nbr . ' : ' . $sql] = 1;
             return $sql;
         }
 
@@ -1217,9 +1217,48 @@ class fun /* extends base */
             $reproductible = json_encode([$res, $sql]);
             $a = 1;
         }
-        $_ENV['_sql'][$nbr . ':' . $sql] = $res;
+        $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
         if (isset($_ENV['_sqlT'])) {
             $_ENV['_sqlT'][$sql] = microtime(true) - $start;
+        }
+        return $res;
+    }
+
+
+    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null)
+    {
+        if (is_array($h)) extract($h);
+        if (!isset($_ENV['pdo_' . $h . $db])) {
+            $_ENV['pdo_' . $h . $db] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, []);#array(PDO::ATTR_PERSISTENT => true)
+        }
+        $cnx = $_ENV['pdo_' . $h . $db];
+
+        if ($params) {
+            $cmd = $cnx->prepare($sql);
+            $cmd->execute($params);
+        } else {
+            $cmd = $cnx->query($sql);
+        }
+        $res = [];
+        while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
+            if ($search) {
+                foreach ($x as $k => $v) {
+                    if (preg_match('~' . $search . '~i', $v)) {
+                        fun::breakpoint($x);
+                    }
+                }
+            }
+            if (isset($x['ARRAYK']) and isset($x['unikk'])) {
+                $res[$x['ARRAYK']][] = $x['unikk'];
+            } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
+                $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
+            } elseif (isset($x['ARRAYK'])) {
+                $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
+            } elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
+            elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
+            elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
+            elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
+            else $res[] = $x;
         }
         return $res;
     }
