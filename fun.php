@@ -1217,9 +1217,11 @@ class fun /* extends base */
             $reproductible = json_encode([$res, $sql]);
             $a = 1;
         }
-        $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
-        if (isset($_ENV['_sqlT'])) {
-            $_ENV['_sqlT'][$sql] = microtime(true) - $start;
+        if (!isset($_ENV['conf']['nostats'])) {
+            $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
+            if (isset($_ENV['_sqlT'])) {
+                $_ENV['_sqlT'][$sql] = microtime(true) - $start;
+            }
         }
         return $res;
     }
