@@ -14,6 +14,20 @@ class swift
 {
     static $swiftSegmentSize = 314572800, $redisAuthKeyExpirationTreshold = 100, $monologPath = '/monolog.log', $redis = null, $authUrl = '', $user = '', $password = '', $domain = 'default', $rk1 = 'swift::token::', $rk2 = 'swift::endpoint::';
 
+    /**
+     * @param $x
+     * @return bool
+     */
+    static function unlink($x)
+    {
+        $a = 1;
+        return @unlink($x);
+    }
+
+    /**
+     * @param $x
+     * @return false|int
+     */
     static function log($x)
     {
         if (!isset($_ENV['monolog'])) {
@@ -21,9 +35,23 @@ class swift
             $_ENV['monolog'] = $_ENV['node'] . ':' . str_replace('.php', '', end($x)) . ':' . getmypid();
         }
         echo "\n" . $x;
-        file_put_contents(static::$monologPath, "\n" . $_ENV['monolog'] . ':' . $x, 8);
+        return file_put_contents(static::$monologPath, "\n" . $_ENV['monolog'] . ':' . $x, 8);
     }
 
+    /**
+     * @param $file
+     * @param $channel
+     * @param $objectId
+     * @param int $unlink
+     * @param int $segSize
+     * @param int $timeout
+     * @param int $maxTries
+     * @param null $md5
+     * @param int $maxFragmentedTries
+     * @param string $dir
+     * @return array
+     * @throws \Exception
+     */
     static function putFile($file, $channel, $objectId, $unlink = 0, $segSize = 314572800, $timeout = 99999, $maxTries = 5, $md5 = null, $maxFragmentedTries = 5, $dir = '/tmp/splits/')
     {
         [$token, $endpoint, $expires] = static::swiftAutoToken();
@@ -153,7 +181,7 @@ class swift
         }
 
         $fs = filesize($file);
-        $unlink = $fragments = [];
+        $unlinks = $fragments = [];
         $totRetries = $manifestOk = $nbFragments = 0;
 
         if ($fs > $segSize) {
@@ -182,15 +210,15 @@ class swift
                             static::log(">Upload failed with " . $retries . ' tries at chunk#' . $idChunk . ' with ' . $etag . ' instead of ' . $md5);
                             throw new \Exception("\nUpload failed with " . $retries . ' tries at chunk#' . $idChunk . ' with ' . $etag . ' instead of ' . $md5);
                         } else {
-                            $unlink[] = $fragment;
-                            unlink($fragment);//non requis, et si oubli unlink source ..
+                            $unlinks[] = $fragment;
+                            static::unlink($fragment);//non requis, et si oubli unlink source ..
                         }
                     }
                     $nbFragments = count($fragments);
 
                     if ($unlink) {
-                        $unlink[] = $file;
-                        unlink($file);//source
+                        $unlinks[] = $file;
+                        static::unlink($file);//source
                     }
 
                     $manifest = tempnam('/tmp', 'manifest');
@@ -199,7 +227,7 @@ class swift
                     [$responseCode, $manifestOk, $essaisParFragments, $etag] = static::filePutUnique($endpoint, $token, $manifest, $channel, $objectId . '?multipart-manifest=put', $unlink, $segSize, $timeout, $maxTries, $md5);
 
                     if ($manifestOk) {
-                        $unlink[] = $dir;
+                        $unlinks[] = $dir;
                         rmdir($dir);
                         static::log('>Manifest ok');
                         return [$responseCode, $manifestOk, $totRetries, $etag, $nbFragments];
@@ -213,7 +241,7 @@ class swift
             }
 // Si c'est un échec alors on efface tous les fragments générés
             foreach ($fragments as $idChunk => $fragment) {
-                @unlink($fragment);
+                static::unlink($fragment);
             }
             rmdir($dir);
             return [0, 0, $totRetries, 0, $nbFragments];
@@ -309,7 +337,7 @@ class swift
         }
         fclose($stream);
         if ($unlink) {
-            unlink($file);
+            static::unlink($file);
         }
         if ($ok) static::log('>swift:ok : ' . $file . ' > ' . $url);
         else {
