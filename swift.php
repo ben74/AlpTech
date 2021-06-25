@@ -49,8 +49,8 @@ class swift
             $post = ['auth' => ['identity' => ['password' => ['user' => ['name' => static::$user, 'password' => static::$password, 'domain' => ['name' => static::$domain]]], 'methods' => [0 => 'password']]]];
             [$token, $endPointUrl, $expiresIn] = static::getToken(static::$authUrl, $post);
             if (static::$redis) {
-                static::$redis->set(static::$rk1, $token, 'EX', time() + $expiresIn - static::$redisAuthKeyExpirationTreshold);
-                static::$redis->set(static::$rk2, $endPointUrl, 'EX', time() + $expiresIn - static::$redisAuthKeyExpirationTreshold);
+                static::$redis->set(static::$rk1, $token, $expiresIn - static::$redisAuthKeyExpirationTreshold);
+                static::$redis->set(static::$rk2, $endPointUrl, $expiresIn - static::$redisAuthKeyExpirationTreshold);
             }
         }
         return [$token, $endPointUrl, $expiresIn];
