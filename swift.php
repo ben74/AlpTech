@@ -1,11 +1,11 @@
 <?php
-//use Alptech\wip\swift
 /*
+use Alptech\wip\swift:
 swift::$redis = redisConnection()
 swift::$user = 'xx';
 swift::$password = 'pp';
 swift::$authUrl = 'https://swift.com/identity/v3';
-swift::putFile('yo');
+[$responseCode, $ok, $totRetries, $etag, $nbFragments]=swift::putFile('localtFile.mp4','container','distantFile.mp4');
  */
 
 namespace Alptech\Wip;
@@ -20,7 +20,6 @@ class swift
      */
     static function unlink($x)
     {
-        $a = 1;
         return @unlink($x);
     }
 
@@ -32,10 +31,10 @@ class swift
     {
         if (!isset($_ENV['monolog'])) {
             $x = explode('/', $GLOBALS['argv'][0]);
-            $_ENV['monolog'] = $_ENV['node'] . ':' . str_replace('.php', '', end($x)) . ':' . getmypid();
+            $_ENV['monolog'] = $_ENV['HOSTNAME'] . ': ' . str_replace('.php', '', end($x)) . ': ' . getmypid();
         }
         echo "\n" . $x;
-        return file_put_contents(static::$monologPath, "\n" . $_ENV['monolog'] . ':' . $x, 8);
+        return file_put_contents(static::$monologPath, "\n" . $_ENV['monolog'] . '»»  ' . $x, 8);
     }
 
     /**
@@ -339,9 +338,9 @@ class swift
         if ($unlink) {
             static::unlink($file);
         }
-        if ($ok) static::log('>swift:ok : ' . $file . ' > ' . $url);
+        if ($ok) static::log('swift:ok : ' . $file . ' > ' . $url);
         else {
-            static::log('>swift:ko : ' . $file . ' > ' . $url);
+            static::log('swift:ko : ' . $file . ' > ' . $url);
         }
         return [$responseCode, $ok, $retries, $headers['Etag'], $nbFragments];//201 created
     }
