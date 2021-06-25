@@ -14,7 +14,7 @@ class spark
         $_ENV['stopOthersShutdowns'] = 1;
         register_shutdown_function(__CLASS__ . '::shutdown');#Above,__NAMESPACE__ .'\
         static::$oldExceptionHandler = set_exception_handler(__CLASS__ . '::exception'); #restore_error_handler();#préférence pour le dernier déclaré
-        static::$oldErrorHandler = set_error_handler(__CLASS__ . '::error');#['class','function'] ini_set('log_errors',0);
+        static::$oldErrorHandler = set_error_handler(__CLASS__ . '::error');# ['class','function'] ini_set('log_errors',0);
 
 #$_ENV=[];
         define('CLI', isset($GLOBALS['argv']));

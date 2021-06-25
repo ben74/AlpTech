@@ -1227,7 +1227,7 @@ class fun /* extends base */
     }
 
 
-    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0)
+    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0)
     {
         if (is_array($h)) extract($h);
         try {
@@ -1258,15 +1258,24 @@ class fun /* extends base */
 
             if (Preg_match("~^(create|update|alter|delete|replace) ~i", $sql)) {
                 $_ENV['sqlm'][] = $sql;
+                if (is_bool($cmd)) {// False => Pas d'effet
+                    $err = 2;
+                    return $cmd;
+                }
                 $nb = $cmd->rowCount();
                 return $nb;
             } elseif (Preg_match("~^insert ~i", $sql)) {
                 $_ENV['sqlm'][] = $sql;
                 $id = $cnx->lastInsertId();
-                if (!$id) {
-                    return -999;#M2M
+                if (!$id) {//inserts without primary keys
+                    return 0;#M2M
                 }
                 return $id;
+            }
+
+            if (intval($cnx->errorCode())) {
+                throw new Exception(implode(' ', $cnx->errorInfo()));
+                $err = 'todo -- catch here for sql errors';
             }
 
             $res = [];
@@ -1294,6 +1303,9 @@ class fun /* extends base */
 
         } catch (\Throwable $_e) {
             fun::breakpoint('sql error', $sql, $_e);
+            if ($errorCallback) {
+                return $errorCallback($sql, $_e);
+            }
             throw $_e;
         }
     }
