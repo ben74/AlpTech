@@ -1252,6 +1252,12 @@ class fun /* extends base */
                 $cmd = $cnx->query($sql);
             }
 
+            if (intval($cnx->errorCode())) {
+                $err = implode(' ', $cnx->errorInfo());
+                throw new \Exception($sql . " :: " . $err);
+                $err = 'todo -- catch here for sql errors';
+            }
+
             if ($intercepts) {
                 $intercepts('sql', $sql);
             }
@@ -1268,14 +1274,10 @@ class fun /* extends base */
                 $_ENV['sqlm'][] = $sql;
                 $id = $cnx->lastInsertId();
                 if (!$id) {//inserts without primary keys
+                    return $cmd->rowCount();//nb inserts
                     return 0;#M2M
                 }
                 return $id;
-            }
-
-            if (intval($cnx->errorCode())) {
-                throw new Exception(implode(' ', $cnx->errorInfo()));
-                $err = 'todo -- catch here for sql errors';
             }
 
             $res = [];
@@ -1287,7 +1289,9 @@ class fun /* extends base */
                         }
                     }
                 }
-                if (isset($x['ARRAYK']) and isset($x['unikk'])) {
+                if (isset($x['ARRAYK']) and isset($x['pkid']) and isset($x['unikk'])) {
+                    $res[$x['ARRAYK']][$x['pkid']] = $x['unikk'];
+                } elseif (isset($x['ARRAYK']) and isset($x['unikk'])) {
                     $res[$x['ARRAYK']][] = $x['unikk'];
                 } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
                     $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
