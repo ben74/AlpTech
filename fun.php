@@ -1030,11 +1030,12 @@ class fun /* extends base */
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0)
     {
         static $nbr = 0;
+        $names = 0;
         $nbr++;
         $start = microtime(true);
         $baseConf = $sql;
-        $s = fun::getConf($conf);
-        $names = $s['names'];
+        $s = fun::getConf($conf);#<==== attention, pleins de trucs ont besoin de cleaalptech utf8 set names as default
+        //$names = $s['names'];//UTF8 ou
         if (is_array($sql)) {
             extract($sql);
             if (is_array($sql) and !isset($sql['sql'])) {
@@ -1211,6 +1212,9 @@ class fun /* extends base */
                 elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
                 else $res[] = $x;
             }
+            if (strpos($sql, ' as unikk') and count($res) == 1 and is_null($res[0]['unikk'])) {
+                return null;
+            }
         }
         if (isset($_ENV['stop']) and $_ENV['stop']) {
             $_ENV['stop'] = 0;
@@ -1227,33 +1231,70 @@ class fun /* extends base */
     }
 
 
-    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0)
+    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [])
     {
+        $port = 3306;
+        $names = 0;
         if (is_array($h)) extract($h);
+
+        $konnektion = $h . $db . $port . $names;
         try {
-            if (!isset($_ENV['pdo_' . $h . $db])) {
-                $_ENV['pdo_' . $h . $db] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, []);#array(PDO::ATTR_PERSISTENT => true)
-            }
-            $cnx = $_ENV['pdo_' . $h . $db];
-            if ($params) {
-                $cmd = $cnx->prepare($sql);
-                if ($bindParams) {
-                    foreach ($params as $k => $value) {
-                        $cmd->bindValue(
-                            is_string($k) ? $k : $k + 1, $value,
-                            is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR
-                        );
+            if (!isset($_ENV['pdo_' . $konnektion])) {
+                $_ENV['pdo_' . $konnektion] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, []);
+                $cnx = $_ENV['pdo_' . $konnektion];
+                if ($names) {
+                    $cmd=$cnx->prepare("SET NAMES '" . $names . "'");
+                    $success = $cmd->execute();
+                }
+                if ($preConnect) {
+                    foreach ($preConnect as $pre) {
+                        $cmd=$cnx->prepare($pre);
+                        $success = $cmd->execute();
                     }
-                    $cmd->execute();
-                } else {
-                    $cmd->execute($params);
                 }
             } else {
-                $cmd = $cnx->query($sql);
+                $cnx = $_ENV['pdo_' . $konnektion];
+            }
+            try {
+                if ($params) {
+                    $cmd = $cnx->prepare($sql);
+                    if ($bindParams) {
+                        foreach ($params as $k => $value) {
+                            $cmd->bindValue(
+                                is_string($k) ? $k : $k + 1, $value,
+                                is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR
+                            );
+                        }
+                        $success = $cmd->execute();
+                    } else {
+                        $success = $cmd->execute($params);
+                    }
+                } else {
+                    $success = $cmd = $cnx->query($sql);
+                }
+            } catch (\Throwable $e) {
+                $a = 2;
             }
 
-            if (intval($cnx->errorCode())) {
+            if (!$success) {
+                $b = 'failure';
+            }
+
+            if ($cnx->errorCode() != '00000') {
                 $err = implode(' ', $cnx->errorInfo());
+                if (strpos($err, 'Y000 2006 MySQL server has gone')) {
+                    if ($retry > 3) {
+                        if (function_exists('\monolog')) {
+                            \monolog('#err#' . $sql . '>' . $err . '>retry:' . $retry . '>Exception');
+                        }
+                        throw new \Exception($retry . '::' . $sql . " :: " . $err);
+                    }
+                    unset($_ENV['pdo_' . $konnektion]);
+                    if (function_exists('\monolog')) {
+                        \monolog('#err#' . $sql . '>' . $err . '>retry:' . $retry);
+                    }
+                    return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
+                }
                 throw new \Exception($sql . " :: " . $err);
                 $err = 'todo -- catch here for sql errors';
             }
@@ -1280,6 +1321,11 @@ class fun /* extends base */
                 return $id;
             }
 
+            if (is_bool($cmd)) {// and select, why ????
+                echo "\nBool:" . $sql;
+                return $cmd;
+            }
+
             $res = [];
             while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
                 if ($search) {
@@ -1297,15 +1343,23 @@ class fun /* extends base */
                     $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
                 } elseif (isset($x['ARRAYK'])) {
                     $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
-                } elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
-                elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
+                } elseif (isset($x['unikk'])) {
+                    return $x['unikk'];#single expectation return result
+                } elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
                 elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
                 elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
                 else $res[] = $x;
             }
+//if(!isset($x['unikk'])) in previous results
+            if (strpos($sql, ' as unikk') and count($res) == 1 and is_null($res[0]['unikk'])) {
+                return null;
+            }
+
+
             return $res;
 
         } catch (\Throwable $_e) {
+            echo "\n" . $_e->getMessage();
             fun::breakpoint('sql error', $sql, $_e);
             if ($errorCallback) {
                 return $errorCallback($sql, $_e);
