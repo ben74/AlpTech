@@ -1155,7 +1155,7 @@ class fun /* extends base */
             $_ENV['stop'] = 0;
             $a = 1;
         }
-        if (Preg_match("~^(create|update|alter|delete|replace) ~i", $sql)) {
+        if (Preg_match("~(\*/ |^)(create|update|alter|delete|replace) ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             if ($stmt) {
                 $nb = $stmt->affected_rows;
@@ -1167,7 +1167,7 @@ class fun /* extends base */
                 return 0;
             }
             return $nb;
-        } elseif (Preg_match("~^insert ~i", $sql)) {
+        } elseif (Preg_match("~(\*/ |^)insert ~i", $sql)) {
             $_ENV['sqlm'][] = $sql;
             if ($stmt) {
                 $id = $stmt->insert_id;
@@ -1189,7 +1189,11 @@ class fun /* extends base */
         if ($stmt) {
             $x2 = mysqli_stmt_get_result($stmt);
             mysqli_stmt_close($stmt);
-        }
+        }// $_c->stat()
+        /**
+         * MYSQLI_USE_RESULT - returns a mysqli_result object with unbuffered result set. As long as there are pending records waiting to be fetched, the connection line will be busy and all subsequent calls will return error Commands out of sync. To avoid the error all records must be fetched from the server or the result set must be discarded by calling mysqli_free_result().
+         * MYSQLI_ASYNC (available with mysqlnd) - the query is performed asynchronously and no result set is immediately returned. mysqli_poll() is then used to get results from such queries. Used in combination with either MYSQLI_STORE_RESULT or MYSQLI_USE_RESULT constant.
+         */
         if ($x2) {
             while ($x = @mysqli_fetch_assoc($x2)) {
                 if ($search) {
@@ -1212,7 +1216,7 @@ class fun /* extends base */
                 elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
                 else $res[] = $x;
             }
-            if (strpos($sql, ' as unikk') and count($res) == 1 and is_null($res[0]['unikk'])) {
+            if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
                 return null;
             }
         }
@@ -1231,8 +1235,18 @@ class fun /* extends base */
     }
 
 
-    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [])
+    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [])
     {
+        //$cn->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
+        if (!$options) {
+            $options = array(
+                \PDO::ATTR_EMULATE_PREPARES => false,// keep it fast please
+                //  \PDO::ATTR_PERSISTENT => TRUE,  // we want to use persistent connections
+                //  \PDO::MYSQL_ATTR_COMPRESS => TRUE, // MySQL-specific attribute
+            );
+        }
+
+        //$db = new \DB\SQL('mysql:host=localhost;port=3306;dbname=mysqldb','username','password', $options)
         $port = 3306;
         $names = 0;
         if (is_array($h)) extract($h);
@@ -1240,15 +1254,16 @@ class fun /* extends base */
         $konnektion = $h . $db . $port . $names;
         try {
             if (!isset($_ENV['pdo_' . $konnektion])) {
-                $_ENV['pdo_' . $konnektion] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, []);
+                $_ENV['pdo_' . $konnektion] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, $options);
+
                 $cnx = $_ENV['pdo_' . $konnektion];
                 if ($names) {
-                    $cmd=$cnx->prepare("SET NAMES '" . $names . "'");
+                    $cmd = $cnx->prepare("SET NAMES '" . $names . "'");
                     $success = $cmd->execute();
                 }
                 if ($preConnect) {
                     foreach ($preConnect as $pre) {
-                        $cmd=$cnx->prepare($pre);
+                        $cmd = $cnx->prepare($pre);
                         $success = $cmd->execute();
                     }
                 }
@@ -1303,15 +1318,15 @@ class fun /* extends base */
                 $intercepts('sql', $sql);
             }
 
-            if (Preg_match("~^(create|update|alter|delete|replace) ~i", $sql)) {
+            if (Preg_match("~(\*/ |^)(create|update|alter|delete|replace) ~i", $sql)) {
                 $_ENV['sqlm'][] = $sql;
-                if (is_bool($cmd)) {// False => Pas d'effet
+                if (is_bool($cmd)) {// after delete== False => Pas d'effet
                     $err = 2;
                     return $cmd;
                 }
                 $nb = $cmd->rowCount();
                 return $nb;
-            } elseif (Preg_match("~^insert ~i", $sql)) {
+            } elseif (Preg_match("~(\*/ |^)insert ~i", $sql)) {
                 $_ENV['sqlm'][] = $sql;
                 $id = $cnx->lastInsertId();
                 if (!$id) {//inserts without primary keys
@@ -1351,7 +1366,7 @@ class fun /* extends base */
                 else $res[] = $x;
             }
 //if(!isset($x['unikk'])) in previous results
-            if (strpos($sql, ' as unikk') and count($res) == 1 and is_null($res[0]['unikk'])) {
+            if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
                 return null;
             }
 
