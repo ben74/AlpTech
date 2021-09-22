@@ -882,6 +882,8 @@ class fun /* extends base */
             } elseif ($v and in_array(strtolower($v), ['?', 'now()'])) {#keep
             } elseif ($v and strpos(strtolower($v), 'convert(') !== FALSE) {
             } elseif ($v and strpos(strtolower($v), 'binary(') !== FALSE) {
+            } elseif ($v and substr($v, 0, 2) == '0x') {//Keep as if
+                $binary = 1;
             } elseif ($v and !is_numeric($v)) {
                 $v = "'" . str_replace("'", "\'", preg_replace("~(\\r+|\\n+)~is", '\n', $v)) . "'";
                 $a = 1;
@@ -1240,7 +1242,7 @@ class fun /* extends base */
         //$cn->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
         if (!$options) {
             $options = array(
-                \PDO::ATTR_EMULATE_PREPARES => false,// keep it fast please
+                \PDO::ATTR_EMULATE_PREPARES => true,// keep it fast please , still converts to integer, funny, nope ?
                 //  \PDO::ATTR_PERSISTENT => TRUE,  // we want to use persistent connections
                 //  \PDO::MYSQL_ATTR_COMPRESS => TRUE, // MySQL-specific attribute
             );
@@ -1250,7 +1252,12 @@ class fun /* extends base */
         $port = 3306;
         $names = 0;
         if (is_array($h)) extract($h);
+        $__sql = $sql;
 
+        if (isset($_ENV['sqlLog']) and $_ENV['sqlLog'] or (isset($_ENV['sqlTime']) and $_ENV['sqlTime'])) {
+            $a = microtime(1);
+            file_put_contents($_ENV['sqlLog'], "\n\nRunning:" . $sql, 8);
+        }
         $konnektion = $h . $db . $port . $names;
         try {
             if (!isset($_ENV['pdo_' . $konnektion])) {
@@ -1310,6 +1317,7 @@ class fun /* extends base */
                     }
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 }
+                ///*ben*/ insert into shares(uuid,channel_id,target_type,target_id,target_uuid,encoding_id,player_id,created_at,updated_at)values(7304556230388132736,64,'vod_media',7905,7304556230369459242,2390,207,now(),now())
                 throw new \Exception($sql . " :: " . $err);
                 $err = 'todo -- catch here for sql errors';
             }
@@ -1319,6 +1327,9 @@ class fun /* extends base */
             }
 
             if (Preg_match("~(\*/ |^)(create|update|alter|delete|replace) ~i", $sql)) {
+                if (isset($_ENV['sqlTime']) and $_ENV['sqlTime']) {
+                    $_ENV['sqlTime'][$sql] = round(microtime(1) - $a, 3);
+                }
                 $_ENV['sqlm'][] = $sql;
                 if (is_bool($cmd)) {// after delete== False => Pas d'effet
                     $err = 2;
@@ -1327,6 +1338,9 @@ class fun /* extends base */
                 $nb = $cmd->rowCount();
                 return $nb;
             } elseif (Preg_match("~(\*/ |^)insert ~i", $sql)) {
+                if (isset($_ENV['sqlTime']) and $_ENV['sqlTime']) {
+                    $_ENV['sqlTime'][$sql] = round(microtime(1) - $a, 3);
+                }
                 $_ENV['sqlm'][] = $sql;
                 $id = $cnx->lastInsertId();
                 if (!$id) {//inserts without primary keys
@@ -1341,7 +1355,17 @@ class fun /* extends base */
                 return $cmd;
             }
 
+            if (isset($_ENV['sqlLog']) and $_ENV['sqlLog']) {
+                file_put_contents($_ENV['sqlLog'], " > exec: " . (round(microtime(1) - $a, 3)), 8);
+                $b = microtime(1);
+            }
             $res = [];
+// as ARRAYK, beware/
+            $arrayk = strpos($sql, ' ARRAYK');#array_key_exists('ARRAYK', $x);# (isset($x['ARRAYK']) or is_null($x['ARRAYK']));
+            $pkid = strpos($sql, ' pkid');#array_key_exists('pkid', $x);#(isset($x['pkid']) or is_null($x['pkid']));
+            $unikk = strpos($sql, ' unikk');#array_key_exists('unikk', $x);#(isset($x['unikk']) or is_null($x['unikk']));
+            $roww = strpos($sql, ' roww');#array_key_exists('roww', $x);#(isset($x['roww']) or is_null($x['roww']));
+
             while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
                 if ($search) {
                     foreach ($x as $k => $v) {
@@ -1350,23 +1374,38 @@ class fun /* extends base */
                         }
                     }
                 }
-                if (isset($x['ARRAYK']) and isset($x['pkid']) and isset($x['unikk'])) {
+                if ($arrayk and $pkid and $unikk) {// 2 dmin
                     $res[$x['ARRAYK']][$x['pkid']] = $x['unikk'];
-                } elseif (isset($x['ARRAYK']) and isset($x['unikk'])) {
+                } elseif ($arrayk and $unikk) {// 1 dim
                     $res[$x['ARRAYK']][] = $x['unikk'];
-                } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
+                } elseif ($arrayk and $pkid) {
                     $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
-                } elseif (isset($x['ARRAYK'])) {
+                } elseif ($arrayk) {
                     $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
-                } elseif (isset($x['unikk'])) {
+                } elseif ($unikk) {
                     return $x['unikk'];#single expectation return result
-                } elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
-                elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
-                elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
+                } elseif ($pkid and $roww) {
+                    $res[$x['pkid']] = $x['roww'];#single expectation return result
+                } elseif ($pkid) $res[$x['pkid']] = $x;#named pkid row
+                elseif ($roww) $res[] = $x['roww'];#single expectation per row
                 else $res[] = $x;
             }
+            if (isset($_ENV['sqlLog']) and $_ENV['sqlLog']) {
+                file_put_contents($_ENV['sqlLog'], " fetched > " . (round(microtime(1) - $b, 3)), 8);
+            }
+
+            if (isset($_ENV['sqlTime']) and $_ENV['sqlTime']) {
+                $_ENV['sqlTime'][$nbr . ' : ' . $sql] = round(microtime(1) - $a, 3);
+            }
+            if (!isset($_ENV['conf']['nostats'])) {
+                $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
+            }
+
+            if (!$res and $unikk) {
+                return null;
+            }
 //if(!isset($x['unikk'])) in previous results
-            if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
+            if ($unikk and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
                 return null;
             }
 
@@ -1792,6 +1831,35 @@ class fun /* extends base */
         $ret = 0;
         if ($passive) ftp_pasv($conn_id, true);
         if ($x = ftp_put($conn_id, $distantFile, $localFile, $mode)) {
+            $ret = 1;
+        }
+        ftp_close($conn_id);
+        return $ret;
+    }
+
+    static function ftpget($ftp_server, $ftp_user_name, $ftp_user_pass, $distantFile, $localFile, $port = 21, $ssl = 0, $timeout = 999, $mode = FTP_ASCII, $passive = 1)
+    {
+        if (is_array($ftp_server)) extract($ftp_server);
+        if ($ssl) {
+            $conn_id = ftp_ssl_connect($ftp_server, $port, $timeout);
+        } else {
+            $conn_id = ftp_connect($ftp_server, $port, $timeout);
+        }
+        if (!$conn_id) {
+            echo 'nocon';
+            return 0;
+        }
+
+        $login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
+        if (!$login_result) {
+            echo 'logfailed';
+            return 0;
+        }
+
+        #$list=ftp_nlist($conn_id,'.');#rawlist
+        $ret = 0;
+        if ($passive) ftp_pasv($conn_id, true);
+        if ($x = ftp_get($conn_id, $localFile, $distantFile, $mode)) {
             $ret = 1;
         }
         ftp_close($conn_id);
