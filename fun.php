@@ -1361,10 +1361,10 @@ class fun /* extends base */
             }
             $res = [];
 // as ARRAYK, beware/
-            $arrayk = strpos($sql, ' ARRAYK');#array_key_exists('ARRAYK', $x);# (isset($x['ARRAYK']) or is_null($x['ARRAYK']));
-            $pkid = strpos($sql, ' pkid');#array_key_exists('pkid', $x);#(isset($x['pkid']) or is_null($x['pkid']));
-            $unikk = strpos($sql, ' unikk');#array_key_exists('unikk', $x);#(isset($x['unikk']) or is_null($x['unikk']));
-            $roww = strpos($sql, ' roww');#array_key_exists('roww', $x);#(isset($x['roww']) or is_null($x['roww']));
+            $arrayk = strpos($sql, 'as ARRAYK');#array_key_exists('ARRAYK', $x);# (isset($x['ARRAYK']) or is_null($x['ARRAYK']));
+            $pkid = strpos($sql, 'as pkid');#array_key_exists('pkid', $x);#(isset($x['pkid']) or is_null($x['pkid']));
+            $unikk = strpos($sql, 'as unikk');#array_key_exists('unikk', $x);#(isset($x['unikk']) or is_null($x['unikk']));
+            $roww = strpos($sql, 'as roww');#array_key_exists('roww', $x);#(isset($x['roww']) or is_null($x['roww']));
 
             while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
                 if ($search) {

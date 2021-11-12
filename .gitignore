@@ -3,3 +3,4 @@ cli.conf.php
 *.log
 *.lock
 *.local
+@notes
