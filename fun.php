@@ -1,5 +1,7 @@
 <?php
-
+/*
+ * $_ENV['conf']['nostats']=1;//reduces memory usage : no mysql results keps
+ */
 namespace Alptech\Wip;
 
 class fun /* extends base */
@@ -904,6 +906,32 @@ class fun /* extends base */
         return "($keys) values $values";
     }
 
+    static function updateValues2($t)
+    {
+        $upd = $params = [];
+        foreach ($t as $k => $v) {
+            $upd[] = '`' . trim($k, '`') . '`=?';
+            $params[] = $v;
+        }
+        $upd = implode(',', $upd);
+        return [$upd, $params];
+    }
+
+    static function updateValues($t)
+    {
+        $upd = [];
+        foreach ($t as $k => $v) {
+            $k = trim($k, '`');
+            if (is_numeric($v) or $v == '?') {
+                null;
+            } else {
+                $v = '"' . str_replace('"', '', $v) . '"';
+            }
+            $upd[] = "`$k`=" . $v;
+        }
+        return implode(',', $upd);
+    }
+
     /* simple wrappers */
     static function alertMail($sub = '', $msg = '', $to = null, $head = '')
     {
@@ -1124,7 +1152,7 @@ class fun /* extends base */
 
         $err = \mysqli_error($connection);
         if ($err and !$ignoreErrors) {
-            if ($err == 'MySQL server has gone away') {#
+            if (stripos($err, 'MySQL server has gone away') === FALSE) {#
                 unset($_ENV[$k]);
                 $x = fun::sql($baseConf, $conf, $charset, $port, $ignoreErrors, $try + 1);
                 return $x;
@@ -1243,9 +1271,15 @@ class fun /* extends base */
         if (!$options) {
             $options = array(
                 \PDO::ATTR_EMULATE_PREPARES => true,// keep it fast please , still converts to integer, funny, nope ?
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false,
                 //  \PDO::ATTR_PERSISTENT => TRUE,  // we want to use persistent connections
                 //  \PDO::MYSQL_ATTR_COMPRESS => TRUE, // MySQL-specific attribute
             );
+            if (isset($_SERVER['pdoOptions'])) {
+                foreach ($_SERVER['pdoOptions'] as $k => $v) $options[$k] = $v;
+            }
+            //  // Memory Saver, performance ?? ..
         }
 
         //$db = new \DB\SQL('mysql:host=localhost;port=3306;dbname=mysqldb','username','password', $options)
@@ -1262,7 +1296,7 @@ class fun /* extends base */
         try {
             if (!isset($_ENV['pdo_' . $konnektion])) {
                 $_ENV['pdo_' . $konnektion] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, $options);
-
+                //$_ENV['pdo_' . $konnektion]->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
                 $cnx = $_ENV['pdo_' . $konnektion];
                 if ($names) {
                     $cmd = $cnx->prepare("SET NAMES '" . $names . "'");
@@ -1295,10 +1329,11 @@ class fun /* extends base */
                     $success = $cmd = $cnx->query($sql);
                 }
             } catch (\Throwable $e) {
-                $a = 2;
+                throw $e;
             }
 
             if (!$success) {
+                //$cnx->errorInfo();
                 $b = 'failure';
             }
 
@@ -1386,10 +1421,15 @@ class fun /* extends base */
                     return $x['unikk'];#single expectation return result
                 } elseif ($pkid and $roww) {
                     $res[$x['pkid']] = $x['roww'];#single expectation return result
-                } elseif ($pkid) $res[$x['pkid']] = $x;#named pkid row
-                elseif ($roww) $res[] = $x['roww'];#single expectation per row
-                else $res[] = $x;
+                } elseif ($pkid) {
+                    $res[$x['pkid']] = $x;#named pkid row
+                } elseif ($roww) {
+                    $res[] = $x['roww'];#single expectation per row
+                } else {
+                    $res[] = $x;
+                }
             }
+
             if (isset($_ENV['sqlLog']) and $_ENV['sqlLog']) {
                 file_put_contents($_ENV['sqlLog'], " fetched > " . (round(microtime(1) - $b, 3)), 8);
             }
@@ -1408,7 +1448,6 @@ class fun /* extends base */
             if ($unikk and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
                 return null;
             }
-
 
             return $res;
 
