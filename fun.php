@@ -110,6 +110,7 @@ class fun /* extends base */
             }
         }
 
+        $m = [];
         if (Preg_Match("~' *or|\" *or|or *1 *= *1|union *all~i", $x, $m) && !Preg_Match("~[l|d]' *or~i", $x, $m) && 'pas anodin ..') {
             return $m[0];
         }
@@ -144,13 +145,14 @@ class fun /* extends base */
 
     static function r404($x = '', $y = '')
     {
+        if ($y) null;
         header('HTTP/1.0 404 Not Found', 1, 404);
         fun::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
     }
 
     static function hl($a = '', $b = true, $c = null)
     {
-        return header($a, $b, $c);
+        \header($a, $b, $c);
     }
 
     static function r302($x = '', $virtual = 0)
@@ -164,6 +166,7 @@ class fun /* extends base */
 
     static function dbm($x, $sub = null, $f = null)
     {#todo:if config send debug to url ....
+        if ($f) null;
         if (!fun::getConf('sendLogs')) {
             return;
         }
@@ -351,8 +354,8 @@ class fun /* extends base */
 
     static function cuo($opts)
     {
-        $curl = curl_init();
-        curl_setopt_array($curl, $opts);
+        $curl = \curl_init();
+        \curl_setopt_array($curl, $opts);
         $result = \curl_exec($curl);
         $info = \curl_getinfo($curl);
         $error = \curl_error($curl);
@@ -368,6 +371,7 @@ class fun /* extends base */
 
     static function bt($x = null)
     {
+        if ($x) null;
         return debug_backtrace(2);
     }
 
@@ -471,14 +475,14 @@ class fun /* extends base */
 
             if ($w && $w[1] && (int)$w[1]) {
                 if (!in_array((int)$w[1], fun::getConf('thumbAuthorizedWidths'))) {
-                    #return;
+                    null;#return;
                 }
                 $filepath = str_replace($w[0], '', $filepath);#strip out parameter
                 $width = (int)$w[1];
             }
             if ($h && $h[1] && (int)$h[1]) {
                 if (!in_array((int)$w[1], fun::getConf('thumbAuthorizedHeights'))) {
-                    #return;
+                    null;#return;
                 }
                 $filepath = str_replace($h[0], '', $filepath);#strip out
                 $height = (int)$h[1];
@@ -561,10 +565,11 @@ class fun /* extends base */
     {
         #was thumbgen::main(compact('filename','target','h','w'));#list($cuwidth, $cuheight) = getimagesize($filename);
         #global $debug;
-        $ts = 2;
+
         $quality = 70;#jpeg
         $pngq = 9; //0 : no compression, 9 :best
-        $owidth = $oheight = $ext = $posy = $posx = $srcx = $srcy = $ext2 = null;
+        $srcx = $srcy = $ext2 = null;
+        //$posx = $posy = $ext = $oheight = $owidth = $ts = null;
 
         #if(c('CLI'))print_r($params);
         if (is_array($filename)) {
@@ -705,7 +710,7 @@ class fun /* extends base */
         imagecopyresampled($tmp, $img, $posx, $posy, $srcx, $srcy, $width, $height, $cuwidth, $cuheight);
 
         if (strpos($target, 'thumbs/') and 0) { #salomon.com pants -retry until less than 30% of the thumb is white
-            $count = getPixelCountByColor($tmp, 16777215);
+            $count = \getPixelCountByColor($tmp, 16777215);
             while (($count[0] / $count[1]) > 0.3) {
                 $w *= 2;
                 $h *= 2;
@@ -717,7 +722,7 @@ class fun /* extends base */
                     break;
                 }
                 imagecopyresampled($tmp, $img, $posx, $posy, $srcx, $srcy, $width, $height, $cuwidth, $cuheight);
-                $count = getPixelCountByColor($tmp, 16777215);
+                $count = \getPixelCountByColor($tmp, 16777215);
             }
         }
 
@@ -787,7 +792,7 @@ class fun /* extends base */
     static function thumb($img)
     {
         #return _LANG_PATH_ . '/stream/index.html?image=' .$img;#old way otherwise ..
-        parse_str('image=' . $img, $m);
+        \parse_str('image=' . $img, $m);
         $m['width'] = (isset($m['width'])) ? $m['width'] : 0;
         $m['height'] = (isset($m['height'])) ? $m['height'] : 0;
         return fun::thumbnailFileName($m['image'], $m['width'], $m['height']);
@@ -836,7 +841,7 @@ class fun /* extends base */
             $prop->setAccessible(true);
             $v = $prop->getValue($object);
             #$prop->setValue($private, $v . '_2');#alter private prop
-            $privateVariablesAndMethods['vars'][$prop->getName()] = $prop->getValue($object);
+            $privateVariablesAndMethods['vars'][$prop->getName()] = $v;
         }
         return [$reflect, $methods, $props, $privateVariablesAndMethods];#$reflect[$prop]->setValue($private,$v);
         #return compact('reflect','methods','props','privateVariablesAndMethods');#$reflect[$prop]->setValue($private,$v);
@@ -881,9 +886,12 @@ class fun /* extends base */
         foreach ($z as &$v) {
             if (0 and $v === "'0'") {
                 $v = 0;
-            } elseif ($v and in_array(strtolower($v), ['?', 'now()'])) {#keep
+            } elseif ($v and in_array(strtolower($v), ['?', 'now()'])) {
+                null;#keep
             } elseif ($v and strpos(strtolower($v), 'convert(') !== FALSE) {
+                null;
             } elseif ($v and strpos(strtolower($v), 'binary(') !== FALSE) {
+                null;
             } elseif ($v and substr($v, 0, 2) == '0x') {//Keep as if
                 $binary = 1;
             } elseif ($v and !is_numeric($v)) {
@@ -933,7 +941,7 @@ class fun /* extends base */
     }
 
     /* simple wrappers */
-    static function alertMail($sub = '', $msg = '', $to = null, $head = '')
+    static function alertMail($sub = '', $msg = '', $to = null, $head = '', $from = '')
     {
         if (!$to) {
             $to = fun::getConf('defaultWebmasterEmail');
@@ -1091,7 +1099,7 @@ class fun /* extends base */
                 $connection = $_ENV[$k];
             }
             if (!isset($_ENV[$k])) {#mysqlclose on shutdown
-                $_c = $_ENV[$k] = $connection = mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
+                $_c = $_ENV[$k] = $connection = \mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
                 if (!$_c) {
                     $_e = \mysqli_connect_error($connection);
                     fun::breakpoint('connection error', $_e);
@@ -1101,23 +1109,23 @@ class fun /* extends base */
                 if (isset($_c->error) and $_c->error) {
                     fun::breakpoint($_c);
                 }
-                $_ok = mysqli_select_db($connection, $s['db']);
+                $_ok = \mysqli_select_db($connection, $s['db']);
                 if (!$_ok) {
                     $a = 1;
                     #mysqli_select_db($_c,'superadmin');
                 }
                 if (1 and $names) {
-                    $ok = mysqli_query($connection, "SET NAMES '" . $names . "'");
+                    $ok = \mysqli_query($connection, "SET NAMES '" . $names . "'");
                     $a = 1;
                 }#db encoding
                 if ($charset) {
-                    $__ok = mysqli_set_charset($connection, $charset);
+                    $__ok = \mysqli_set_charset($connection, $charset);
                     $a = 1;
                     #mysqli_query($connection,"SET charset '".$charset."'");
                 }
             }
             if (0 and $names and $names != $connection) {
-                mysqli_query($connection, 'SET NAMES ' . $names);#db encoding
+                \mysqli_query($connection, 'SET NAMES ' . $names);#db encoding
             }
 
         }
@@ -1131,7 +1139,7 @@ class fun /* extends base */
         }
 
         if ($params) {
-            if ($stmt = mysqli_prepare($connection, $sql)) {#"SELECT District FROM City WHERE Name=?"
+            if ($stmt = \mysqli_prepare($connection, $sql)) {#"SELECT District FROM City WHERE Name=?"
                 $types = [];
                 foreach ($params as $v) {
                     if (gettype($v) == 'integer') $types[] = 'i';
@@ -1141,13 +1149,13 @@ class fun /* extends base */
                 $ops = array_merge([$stmt, implode('', $types)], $params);
                 call_user_func_array('mysqli_stmt_bind_param', $ops);#mefiat si plusieurs valeurs == same ..
                 #mysqli_stmt_bind_param($stmt, implode('',$types), $v);
-                mysqli_stmt_execute($stmt);
+                \mysqli_stmt_execute($stmt);
             }
         } else {
             if (!$sql) {
                 return;
             }
-            $x2 = mysqli_query($connection, $sql);
+            $x2 = \mysqli_query($connection, $sql);
         }
 
         $err = \mysqli_error($connection);
@@ -1189,9 +1197,9 @@ class fun /* extends base */
             $_ENV['sqlm'][] = $sql;
             if ($stmt) {
                 $nb = $stmt->affected_rows;
-                mysqli_stmt_close($stmt);
+                \mysqli_stmt_close($stmt);
             } else
-                $nb = Mysqli_affected_rows($connection);
+                $nb = \Mysqli_affected_rows($connection);
             $_ENV['_sql'][$nbr . ' : ' . $sql] = $nb;
             if (!$nb) {
                 return 0;
@@ -1201,8 +1209,8 @@ class fun /* extends base */
             $_ENV['sqlm'][] = $sql;
             if ($stmt) {
                 $id = $stmt->insert_id;
-                mysqli_stmt_close($stmt);
-            } else $id = Mysqli_insert_id($connection);
+                \mysqli_stmt_close($stmt);
+            } else $id = \Mysqli_insert_id($connection);
             $_ENV['_sql'][$nbr . ' : ' . $sql] = $id;
             if (!$id) {
                 return -999;
@@ -1217,15 +1225,15 @@ class fun /* extends base */
 
         $res = [];
         if ($stmt) {
-            $x2 = mysqli_stmt_get_result($stmt);
-            mysqli_stmt_close($stmt);
+            $x2 = \mysqli_stmt_get_result($stmt);
+            \mysqli_stmt_close($stmt);
         }// $_c->stat()
         /**
          * MYSQLI_USE_RESULT - returns a mysqli_result object with unbuffered result set. As long as there are pending records waiting to be fetched, the connection line will be busy and all subsequent calls will return error Commands out of sync. To avoid the error all records must be fetched from the server or the result set must be discarded by calling mysqli_free_result().
          * MYSQLI_ASYNC (available with mysqlnd) - the query is performed asynchronously and no result set is immediately returned. mysqli_poll() is then used to get results from such queries. Used in combination with either MYSQLI_STORE_RESULT or MYSQLI_USE_RESULT constant.
          */
         if ($x2) {
-            while ($x = @mysqli_fetch_assoc($x2)) {
+            while ($x = @\mysqli_fetch_assoc($x2)) {
                 if ($search) {
                     foreach ($x as $k => $v) {
                         if (preg_match('~' . $search . '~i', $v)) {
@@ -1267,6 +1275,7 @@ class fun /* extends base */
 
     static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [])
     {
+        static $nbr = 0;
         //$cn->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
         if (!$options) {
             $options = array(
@@ -1286,7 +1295,7 @@ class fun /* extends base */
         $port = 3306;
         $names = 0;
         if (is_array($h)) extract($h);
-        $__sql = $sql;
+        if ($params and is_string($params)) $params = [$params];
 
         if (isset($_ENV['sqlLog']) and $_ENV['sqlLog'] or (isset($_ENV['sqlTime']) and $_ENV['sqlTime'])) {
             $a = microtime(1);
@@ -1300,17 +1309,18 @@ class fun /* extends base */
                 $cnx = $_ENV['pdo_' . $konnektion];
                 if ($names) {
                     $cmd = $cnx->prepare("SET NAMES '" . $names . "'");
-                    $success = $cmd->execute();
+                    $cmd->execute();
                 }
                 if ($preConnect) {
                     foreach ($preConnect as $pre) {
                         $cmd = $cnx->prepare($pre);
-                        $success = $cmd->execute();
+                        $cmd->execute();
                     }
                 }
             } else {
                 $cnx = $_ENV['pdo_' . $konnektion];
             }
+
             try {
                 if ($params) {
                     $cmd = $cnx->prepare($sql);
@@ -1367,7 +1377,6 @@ class fun /* extends base */
                 }
                 $_ENV['sqlm'][] = $sql;
                 if (is_bool($cmd)) {// after delete== False => Pas d'effet
-                    $err = 2;
                     return $cmd;
                 }
                 $nb = $cmd->rowCount();
@@ -1474,9 +1483,9 @@ class fun /* extends base */
     {
         $s = "\r\n";
         $sub = '=?UTF-8?B?' . base64_encode($sub) . '?=';
-        if (preg_match("~Message-ID: ([^\r\n]+)~i", $head, $m) and $m[1]) {
+        if (!$mid && preg_match("~Message-ID: ([^\r\n]+)~i", $head, $m) and $m[1]) {
             $mid = $m[1];
-        } else {
+        } elseif (!$mid) {
             $mid = preg_replace('~[^a-z0-9]+~i', '', md5(time() . $to . $sub . $body));
             $head .= "Message-ID: " . $mid . $s;
         }#generates messageId if absent
@@ -1487,7 +1496,9 @@ class fun /* extends base */
             $from = trim($m[1], '> ');
         } elseif (!$from and preg_match("~From: ([^\r\n]+)~i", $head, $m) and $m[1]) {#from.$to
             $from = trim($m[1], '> ');
-        } elseif (strpos($head, 'From:') === false) {
+        }
+
+        if (strpos($head, 'From:') === false) {
             if (!$from) {
                 $from = fun::getConf('defaultSenderMail');
             }
@@ -1498,7 +1509,7 @@ class fun /* extends base */
         $sent = mail($to, $sub, $body, $head);
         if ($sp) {#todo:query postfix for messageId
             $f = $_SERVER['DOCUMENT_ROOT'] . $sp . substr(preg_replace('~_+~', '_', preg_replace('~[^a-z0-9@\.\-]~is', '_', $mid . '-_-' . $to . '-_-' . time() . '-_-' . $sub)), 0, 250) . '.json';#
-            $_written = file_put_contents($f, json_encode(compact('sent', 'to', 'sub', 'body', 'head')));
+            file_put_contents($f, json_encode(compact('sent', 'to', 'sub', 'body', 'head')));
         }
         return $sent;
     }
@@ -1550,7 +1561,6 @@ class fun /* extends base */
         if (!isset($_ENV['_obj'][$class])) {# creates one
             if (is_array($p) and count($p) == 1 and array_keys($p) == [0]) {
                 $p = reset($p);#unpack one dimension
-                $a = 1;
             }
             if (0 and $p) {#replaced with $o->setOrGetKv($p);
                 $reflector = new ReflectionClass($class);
@@ -1598,7 +1608,6 @@ class fun /* extends base */
 
     function set($k, $v = 0, $hydrate = 0, $_newer = 0, $virtual = 0 /* might provide additional contexts */)
     {
-        $breakpoint = 1;#interception !!
         if ($virtual) {
             return;
         }
@@ -1672,6 +1681,7 @@ class fun /* extends base */
 
     static function addPhotoWaterMark($baseImg = null, $sign = null, $target = null, $position = 'br', $edgeMargin = 10, $quality = 90, $maxW = 100, $maxH = 100)
     {
+        if ($maxH) null;//unused ??
         if (is_array($baseImg)) {
             extract($baseImg);
         }
@@ -1695,7 +1705,7 @@ class fun /* extends base */
             imagesavealpha($tmp, true);
             $transparent = imagecolorallocatealpha($tmp, 255, 255, 255, 127);
             imagefilledrectangle($tmp, 0, 0, $nw, $wr, $transparent);
-            $res = imagecopyresampled($tmp, $stamp, $destX, $destY, $srcx, $srcy, $nw, $nh, $sx, $sy);
+            imagecopyresampled($tmp, $stamp, $destX, $destY, $srcx, $srcy, $nw, $nh, $sx, $sy);
             #imagePng($tmp,uniqid().'.png',9);
             $stamp = $tmp;
             $sx = $nw;
@@ -1720,6 +1730,7 @@ class fun /* extends base */
 
     static function addBorder($baseImg, $perWidth = 0.5, $prefix = '-', $suffix = '', $save = 1, $qual = 80)
     {
+        $target = null;
         if (is_array($baseImg)) extract($baseImg);
         if (gettype($baseImg) == 'resource') {
             $im = $baseImg;
@@ -1761,6 +1772,7 @@ class fun /* extends base */
         $cropH = $horizontal = 1;
         if ($h > $w) $horizontal = 0;
         if ($ratio < 1) $cropH = 0;
+        if ($cropH) null;//unused
         $x = $y = 0;#début:non défini : haut gauche de l'image
         $nh = $h;
         $nw = $ratio * $h;
@@ -1775,8 +1787,8 @@ class fun /* extends base */
         if ($nw > $w) {#nous n'avons pas cette ressource disponible
             $nw = $w;
             $nh = $w / $ratio;
-        } else {#la place existe, le souhait est-il vertical ?
-
+        } else {
+            null;#la place existe, le souhait est-il vertical ?
         }
 
         if ($position == 'center') {
@@ -1791,6 +1803,7 @@ class fun /* extends base */
 
     static function containIn($baseImg, $ratio = 16 / 9, $position = 'center', $prefix = '-', $suffix = '', $save = 1, $qual = 80, $target = '', $allowVertical = 0)
     {
+        if ($position) null;//unused
         if (is_array($baseImg)) extract($baseImg);
         if (gettype($baseImg) == 'resource') $im = $baseImg; else {
             $im = imagecreatefromjpeg($baseImg);
@@ -1806,6 +1819,7 @@ class fun /* extends base */
         $cropH = $horizontal = 1;
         if ($h > $w) $horizontal = 0;
         if ($ratio < 1) $cropH = 0;
+        if ($cropH) null;//unused
         $cur = $w / $h;
         $nw = $w;
         $nh = $h;
@@ -1832,13 +1846,13 @@ class fun /* extends base */
 #see http://www.asciitable.com/ for references, accents range 128 to 165, weird caracters begins from 169 to 255
     static function asciiToUtf($x)
     {
-        $x1 = str_split($x);
+        $x1 = \str_split($x);
         foreach ($x1 as &$t) {
-            $t = ord($t);
+            $t = \ord($t);
         }
         $max = max($x1);
         if ($max > 195) {
-            $x = utf8_encode($x);
+            $x = \utf8_encode($x);
         }
         return $x;
     }
@@ -1921,7 +1935,6 @@ class fun /* extends base */
             #return false;
             try {
                 $_ENV['memcachedc'] = @memcache_connect('127.0.0.1', 11211);
-                $a = 1;
             } catch (\Exception $e) {
                 $_ENV['memcachedc'] = false;
             }
@@ -1931,10 +1944,10 @@ class fun /* extends base */
 
     static function fgcs($f, $expiration = 0)
     {
+        $x = explode('/', $f);
+        $x = end($x);
         $memc = fun::ismemcacheon();
         if ($memc) {
-            $x = explode('/', $f);
-            $x = end($x);
             $res = memcache_get($memc, $x);
             if ($res) {
                 return $res;
