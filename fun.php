@@ -1339,6 +1339,12 @@ class fun /* extends base */
                     $success = $cmd = $cnx->query($sql);
                 }
             } catch (\Throwable $e) {
+                if(strpos($e->getMessage(),'Lock wait timeout exceeded;') and $retry<3){//SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction
+                    return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
+                } elseif(strpos($e->getMessage(), '2006 MySQL server has gone away') and $retry < 3) {
+                    unset($_ENV['pdo_' . $konnektion]);
+                    return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
+                }
                 throw $e;
             }
 
