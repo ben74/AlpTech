@@ -301,6 +301,144 @@ class fun /* extends base */
         return $found;
     }
 
+    /** CURL multi exec or Guzzle::futures */
+    static function cme($options = [], $defaults = [], $maxParallel = 10, $laterFileFeed = null)
+    {
+        static $distributed = [], $mh, $sep = '£$€', $files = [], $delayed = [], $res = [], $curlActiveConnexions = [], $fh = false, $parallel = 0, $readenBytes = 0, $readBufferLength = 4096;
+        if (!$mh) {
+            $mh = \curl_multi_init();
+        }
+        if ($laterFileFeed) {
+            $fh = fopen($laterFileFeed, 'r');
+        }
+
+        if ('FEED' and $options) {
+            foreach ($options as $opts) {
+                if ($parallel >= $maxParallel) {
+                    $delayed[] = $opts;
+                }
+                $c = static::addCMEHandle($mh, $opts, $defaults, $files, $curlReq, $curlActiveConnexions);
+                $parallel++;
+            }
+        }
+
+        if ('LAUNCH') {
+            $active = null;
+            do {
+                $mrc = \curl_multi_exec($mh, $active);
+            } while ($mrc == CURLM_CALL_MULTI_PERFORM);//lancer
+        }
+
+        if ('PROCESSING THEM ALL') {
+            $slept = $ko = $ok = 0;
+            $cycle1Running = 1;
+            while ($cycle1Running and $curlReq or ($active && $mrc == CURLM_OK)) {// nécessaire au départ
+                do {
+                    $mrc = \curl_multi_exec($mh, $active);
+                    $ir = \curl_multi_info_read($mh);
+                    if ($ir) {
+                        //ir['msg']=1, ir['result']=3
+                        $ha = $ir['handle'];
+                        $inc = intval($ha);
+                        $opts = $curlReq[$inc];
+                        $i = \curl_getinfo($ha);
+                        $k = intval($i['http_code']);
+                        $l = intval($i['download_content_length']);
+                        $newJob = false;
+                        $___u = $opts[CURLOPT_URL];
+
+                        if ('HEAD request returns info' && isset($opts[CURLOPT_NOBODY]) && $opts[CURLOPT_NOBODY]) {
+                            $isHead = 1;
+                        } elseif (isset($opts['FILE'])) {// le fichier est téléchargé::CURLOPT_BUFFERSIZE
+                            //CURLOPT_FILE => $fileHandles[$inc2],
+                            //$__r = \curl_multi_getcontent($curlActiveConnexions[$inc]);
+                            fclose($files[$inc]);
+                            $fs = filesize($opts['FILE']);//$fileHandles[$inc]
+                            $a = 1;
+                        } elseif ('isSimpleGetContents') {
+                            $i = curl_multi_getcontent($ha);// Header+contents
+                        }
+                        $k = $inc . ':' . $___u;
+                        if (isset($opts['id'])) {
+                            $k = $opts['id'];
+                        }
+                        $res[$k] = $i;
+
+                        if (isset($opts['cb'])) {
+                            $newJob = $opts['cb']($i);
+                        }
+
+                        if ($newJob) {
+                            $delayed[] = $newJob;
+                        }
+
+                        \curl_multi_remove_handle($mh, $curlActiveConnexions[$inc]);
+                        unset($curlReq[$inc], $curlActiveConnexions[$inc]);
+                        $parallel--;
+                    } else {
+                        $rienAlirePourLinstantAutreCycleDeWait++;
+                        // Et s'il y avait de nouvelles choses à injecter là dedans .. lecture d'un websocket, d'un redis, d'un rabbit ?
+                    }
+// de toutes façons ..
+                    if ($parallel < $maxParallel && 'si une place libérée') {
+                        if ($fh) {//file for watching
+                            $fs = filesize($laterFileFeed);
+                            if ($fs > $readenBytes) {
+                                $rbuf = '';
+                                while (($readen = fread($fh, $readBufferLength)) && $readen) {
+                                    $rbuf .= $readen;
+                                }
+                                $readenBytes = $fs;
+                                if ($rbuf) {// peut être nul, rien de rajouté dans ce fichier
+                                    $newJobs = explode($sep, $rbuf);
+                                    foreach ($newJobs as $t) {
+                                        $delayed[] = json_decode($t, true);
+                                    }
+                                    $rbuf = '';
+                                }
+                            }
+                        }
+                        if ($delayed) {
+                            $opts = array_shift($delayed);
+                            $c = static::addCMEHandle($mh, $opts, $defaults, $files, $curlReq, $curlActiveConnexions);
+                            $parallel++;
+                        }
+                    }
+                } while ($cycle1Running and $curlReq and $mrc == CURLM_CALL_MULTI_PERFORM);
+            }
+        }
+        if ($fh) {
+            fclose($fh);
+        }
+        \curl_multi_close($mh);// end of processing : get the ability of being feeded asynchronously ( via a file, jsonOptions exploded by £$€, for example )
+        return $res;
+    }
+
+    static function addCMEHandle($mh, $opts, $defaults, &$files, &$curlReq, &$curlActiveConnexions)
+    {
+        $c = \curl_init();
+        $inc = intval($c);// sont recyclées une fois libérées
+        $curlActiveConnexions[$inc] = $c;
+
+        $opts = $opts + $defaults;
+        $curlReq[$inc] = $opts;
+
+        if (isset($opts['cb'])) unset($opts['cb']);
+        if (isset($opts['id'])) unset($opts['id']);
+        if (isset($opts['FILE'])) {
+            $opts[CURLOPT_FILE] = $files[$inc] = fopen($opts['FILE'], 'w+');
+            unset($opts['FILE']);
+        }
+        try {
+            \curl_setopt_array($c, $opts);
+        } catch (\throwable $e) {
+            $a = 1;
+            throw $e;
+        }
+        \curl_multi_add_handle($mh, $c);
+        return $c;
+    }
+
     static function curlFile($url, $file, $name = '', $headers = [], $timeout = 999)
     {
         if (is_array($url)) extract($url);
@@ -1160,7 +1298,7 @@ class fun /* extends base */
 
         $err = \mysqli_error($connection);
         if ($err and !$ignoreErrors) {
-            if (stripos($err, 'MySQL server has gone away') === FALSE) {#
+            if (stripos($err, 'MySQL server has gone away') !== FALSE) {//  MySQL server has gone away
                 unset($_ENV[$k]);
                 $x = fun::sql($baseConf, $conf, $charset, $port, $ignoreErrors, $try + 1);
                 return $x;
@@ -1339,11 +1477,11 @@ class fun /* extends base */
                     $success = $cmd = $cnx->query($sql);
                 }
             } catch (\Throwable $e) {
-                if(strpos($e->getMessage(),'Deadlock found when trying') and $retry<3){//SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock; try restarting transaction
+                if (strpos($e->getMessage(), 'Deadlock found when trying') and $retry < 3) {//SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock; try restarting transaction
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
-                }elseif(strpos($e->getMessage(),'Lock wait timeout exceeded;') and $retry<3){//SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction
+                } elseif (strpos($e->getMessage(), 'Lock wait timeout exceeded;') and $retry < 3) {//SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
-                } elseif(strpos($e->getMessage(), '2006 MySQL server has gone away') and $retry < 3) {
+                } elseif (strpos($e->getMessage(), 'MySQL server has gone away') and $retry < 3) {//2006
                     unset($_ENV['pdo_' . $konnektion]);
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 }
