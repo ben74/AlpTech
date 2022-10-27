@@ -330,7 +330,7 @@ class fun /* extends base */
         }
 
         if ('PROCESSING THEM ALL') {
-            $slept = $ko = $ok = 0;
+            //$slept = $ko = $ok = 0;
             $cycle1Running = 1;
             while ($cycle1Running and $curlReq or ($active && $mrc == CURLM_OK)) {// nécessaire au départ
                 do {
@@ -342,19 +342,17 @@ class fun /* extends base */
                         $inc = intval($ha);
                         $opts = $curlReq[$inc];
                         $i = \curl_getinfo($ha);
-                        $k = intval($i['http_code']);
-                        $l = intval($i['download_content_length']);
+                        //$k = intval($i['http_code']);$l = intval($i['download_content_length']);
                         $newJob = false;
                         $___u = $opts[CURLOPT_URL];
 
                         if ('HEAD request returns info' && isset($opts[CURLOPT_NOBODY]) && $opts[CURLOPT_NOBODY]) {
-                            $isHead = 1;
+                            //$isHead = 1;
                         } elseif (isset($opts['FILE'])) {// le fichier est téléchargé::CURLOPT_BUFFERSIZE
                             //CURLOPT_FILE => $fileHandles[$inc2],
                             //$__r = \curl_multi_getcontent($curlActiveConnexions[$inc]);
                             fclose($files[$inc]);
-                            $fs = filesize($opts['FILE']);//$fileHandles[$inc]
-                            $a = 1;
+                            //$fs = filesize($opts['FILE']);//$fileHandles[$inc]$a = 1;
                         } elseif ('isSimpleGetContents') {
                             $i = curl_multi_getcontent($ha);// Header+contents
                         }
