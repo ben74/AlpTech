@@ -2268,12 +2268,15 @@ class fun /* extends base */
         return $_ENV['rc']->del($k);
     }
 
-    static function sendPhpMail($to, $sub, $msg, $smtp, $from, $pass, $pk, $dkPass, $domain, $smtpPort = 465, $dkSel = 'dk1024-2012', $alt='--nohtml,sorry')
+    static function sendPhpMail($to, $sub, $msg, $smtp, $from, $pass, $pk, $dkPass, $domain, $log = null, $smtpPort = 465, $dkSel = 'dk1024-2012', $alt='--nohtml,sorry')
     {
         if (!\is_file($pk)) {
             throw new \exception('npk');
         }
         try {
+            if($log){
+                file_put_contents($log,"\n}{  ".date('Y-m-d H:i:s').':'.json_encode([$to,$sub,$msg]),8);
+            }
             $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
             $mail->DKIM_domain = $domain;
             $mail->DKIM_selector = $dkSel;
