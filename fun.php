@@ -1200,7 +1200,12 @@ class fun /* extends base */
         #io::fpc(__DIR__.'/migrations/done.lock',);
     }
 
-#fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
+// $conn=compact('h,u,p,db,names']); fun::sql2($conn,$sql,[]);
+    static function sql2($sqlConnParameters,$sql, $params=[] )
+    {
+        return static::sql(['sqlConnParameters' => $sqlConnParameters,'sql' => $sql, 'params' => $params]);
+    }
+//  fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0)
     {
         static $nbr = 0;
@@ -1209,6 +1214,7 @@ class fun /* extends base */
         $start = microtime(true);
         $baseConf = $sql;
         $s = fun::getConf($conf);#<==== attention, pleins de trucs ont besoin de cleaalptech utf8 set names as default
+        if($sqlConnParameters){$s=$sqlConnParameters;extract($s);}
         //$names = $s['names'];//UTF8 ou
         if (is_array($sql)) {
             extract($sql);
@@ -2260,6 +2266,39 @@ class fun /* extends base */
     {
         fun::rc();
         return $_ENV['rc']->del($k);
+    }
+
+    static function sendPhpMail($to, $sub, $msg, $smtp, $from, $pass, $pk, $dkPass, $domain, $smtpPort = 465, $dkSel = 'dk1024-2012', $alt='--nohtml,sorry')
+    {
+        if (!\is_file($pk)) {
+            throw new \exception('npk');
+        }
+        try {
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->DKIM_domain = $domain;
+            $mail->DKIM_selector = $dkSel;
+            $mail->DKIM_private = $pk;
+            $mail->DKIM_identity = $from;
+            $mail->DKIM_passphrase = $dkPass;
+            $mail->isSMTP();
+            $mail->Port = $smtpPort;
+            $mail->SMTPAuth = true;
+            $mail->Username = $from;
+            $mail->Password = $pass;
+            $mail->Host = $smtp;
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+            $mail->setFrom($from);
+            $mail->addAddress($to);
+            $mail->isHTML(true);
+            $mail->Subject = $sub;
+            $mail->Body = $msg;
+            $mail->AltBody = $alt;
+            $mail->send();
+            return 'ok';
+        } catch (\Throwable $e) {
+            return $e->getMessage();
+            echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        }
     }
 }
 
