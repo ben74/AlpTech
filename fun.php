@@ -1221,6 +1221,7 @@ class fun /* extends base */
             if (is_array($sql) and !isset($sql['sql'])) {
                 $sql = 0;#not within extration
             }
+            if($sqlConnParameters){$s=$sqlConnParameters;extract($s);}
             #unset($sql);
             if (isset($s)) {#encore des confs nesteés
                 extract($s);
