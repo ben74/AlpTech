@@ -1288,7 +1288,11 @@ class fun /* extends base */
                     else $types[] = 's';
                 }
                 #array_unshift(implode('',$types),$params);
-                $ops = array_merge([$stmt, implode('', $types)], $params);
+                $ops = array_merge([$stmt, implode('', $types)], static::refValues($params);
+//  <b>Warning</b>:  Parameter 3 to mysqli_stmt_bind_param() expected to be a reference, value given in
+
+                //call_user_func_array(array($stmt, 'bind_param'), $ops));
+
                 call_user_func_array('mysqli_stmt_bind_param', $ops);#mefiat si plusieurs valeurs == same ..
                 #mysqli_stmt_bind_param($stmt, implode('',$types), $v);
                 \mysqli_stmt_execute($stmt);
@@ -1414,6 +1418,10 @@ class fun /* extends base */
         return $res;
     }
 
+    static function refValues($arr){
+        if (strnatcmp(phpversion(),'5.3') >= 0)  {$refs = [];foreach($arr as $key => $value) $refs[$key] = &$arr[$key];return $refs;}
+        return $arr;
+    }
 
     static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [])
     {
