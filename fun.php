@@ -1289,8 +1289,8 @@ class fun /* extends base */
                     else $types[] = 's';
                 }
                 #array_unshift(implode('',$types),$params);
-                //static::refValues(
-                $ops = array_merge([$stmt, implode('', $types)], &$params);
+                //
+                $ops = array_merge([$stmt, implode('', $types)], static::refValues($params));
 //  <b>Warning</b>:  Parameter 3 to mysqli_stmt_bind_param() expected to be a reference, value given in
 
                 //call_user_func_array(array($stmt, 'bind_param'), $ops));
