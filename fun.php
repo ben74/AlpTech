@@ -1288,14 +1288,17 @@ class fun /* extends base */
                     if (gettype($v) == 'integer') $types[] = 'i';
                     else $types[] = 's';
                 }
+                if(0){
                 #array_unshift(implode('',$types),$params);
-                //
+//  <b>Warning</b>:  Parameter 3 to mysqli_stmt_bind_param() expected to be a reference, value given call_user_func_array(array($stmt, 'bind_param')
                 $ops = array_merge([$stmt, implode('', $types)], static::refValues($params));
-//  <b>Warning</b>:  Parameter 3 to mysqli_stmt_bind_param() expected to be a reference, value given in
-
                 //call_user_func_array(array($stmt, 'bind_param'), $ops));
-
+                //call_user_func_array(array($stmt, 'bind_param'), refValues($params));
                 call_user_func_array('mysqli_stmt_bind_param', $ops);#mefiat si plusieurs valeurs == same ..
+                }
+
+                mysqli_stmt_bind_param($stmt, implode('', $types), ...$params);
+
                 #mysqli_stmt_bind_param($stmt, implode('',$types), $v);
                 \mysqli_stmt_execute($stmt);
             }
