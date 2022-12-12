@@ -2364,8 +2364,9 @@ class fun /* extends base */
         if(is_file($f) and !$expiration){
             return require $f;
         }
-        $res=$callback();
+        $res = $callback();
         file_put_contents($f,'<?php return '.var_export($res,true).';');
+        return $res;
     }
 }
 
