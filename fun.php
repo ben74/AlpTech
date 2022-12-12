@@ -2347,6 +2347,26 @@ class fun /* extends base */
         $date2 = gmdate('D, j M Y H:i:s', time() + $expiration) . ' GMT';
         header('Expires: ' . $date2, 1);
     }
+
+    /**
+     * fun::cachefile('cache/key.php',function(){return ['magic'=>'v1:'.time()];},99);
+     *
+     * @param $f
+     * @param $callback
+     * @param $expiration
+     * @return mixed|void
+     */
+    static function cachefile($f, $callback, $expiration = null)
+    {
+        if($expiration && is_file($f)){
+            if(filemtime($f)>(time()-$expiration))$expiration = null;// not expired
+        }
+        if(is_file($f) and !$expiration){
+            return require $f;
+        }
+        $res=$callback();
+        file_put_contents($f,'<?php return '.var_export($res,true).';');
+    }
 }
 
 return; ?>
