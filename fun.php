@@ -2316,6 +2316,37 @@ class fun /* extends base */
             echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
         }
     }
+
+    static function r304($max, $customEtag=null, $expiration = 900000)
+    {// uncheck: network : disable cache, then chrome responds 200 ( inner chrome disk cache ok )
+        static $fired;
+        if ($fired) {
+            return;
+        }
+        $fired = true;
+
+        if(!is_numeric($max)){
+            if(is_file($max)){
+                $max=filemtime($max);
+            }
+        }
+        $etag = $max;
+        if ($customEtag) $etag = $customEtag;
+        $etag = trim(base64_encode((string)$etag),'=');
+        $date = gmdate('D, j M Y H:i:s', $max) . ' GMT';
+        if (
+                (isset($_SERVER['HTTP_IF_NONE_MATCH']) and $_SERVER['HTTP_IF_NONE_MATCH'] == $etag)
+                or (!$customEtag and isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) and $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $date) // simple mode using last modified
+        ) {
+            header('HTTP/1.1 304 Not Modified', 1, 304);
+            die;
+        }
+        header('ETag: ' . $etag, 1);
+        header('Cache-Control: public, max-age=' . $expiration, 1);
+        header('Last-Modified: ' . $date, 1);
+        $date2 = gmdate('D, j M Y H:i:s', time() + $expiration) . ' GMT';
+        header('Expires: ' . $date2, 1);
+    }
 }
 
 return; ?>
