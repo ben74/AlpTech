@@ -165,9 +165,9 @@ class fun /* extends base */
     }
 
     static function dbm($x, $sub = null, $f = null)
-    {#todo:if config send debug to url ....
+    {// todo:if config set send debug to url ....
         if ($f) null;
-        if (!fun::getConf('sendLogs')) {
+        if (!fun::getConf('sendLogs') || !fun::getConf('logCollectorUrl')) {
             return;
         }
         #return;
