@@ -1244,6 +1244,7 @@ class fun /* extends base */
             if (!isset($_ENV[$k])) {#mysqlclose on shutdown
                 $_c = $_ENV[$k] = $connection = \mysqli_connect($s['h'], $s['u'], $s['p'], $s['db'], $port);
                 if (!$_c) {
+                    error_log('mysqlconnect:'.$_SERVER['REQUEST_URI']);
                     $_e = \mysqli_connect_error($connection);
                     fun::breakpoint('connection error', $_e);
                     #print_r($s);
