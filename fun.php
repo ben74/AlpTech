@@ -1201,9 +1201,9 @@ class fun /* extends base */
     }
 
 // $conn=compact('h,u,p,db,names']); fun::sql2($conn,$sql,[]);
-    static function sql2($sqlConnParameters,$sql, $params=[] )
+    static function sql2($sqlConnParameters,$sql, $params=[], $errorCallback = false )
     {
-        return static::sql(['sqlConnParameters' => $sqlConnParameters,'sql' => $sql, 'params' => $params]);
+        return static::sql(['sqlConnParameters' => $sqlConnParameters,'sql' => $sql, 'params' => $params,'errorCallback'=>$errorCallback]);
     }
 //  fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0, $sqlConnParameters = [])
