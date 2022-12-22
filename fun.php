@@ -2393,7 +2393,7 @@ class fun /* extends base */
                 $_SESSION['logged'] = $user;return $user;
             }
         }
-        die("<center>login:<br><form method=post><input name=u value=Username><br><input name=p value=p type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
+        die("<center>login:<br><form method=post><input name=u placeholder=Username><br><input name=p placeholder=password type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
     }
 
 }
