@@ -2388,7 +2388,7 @@ class fun /* extends base */
         if(isset($_SESSION['logged']) && $_SESSION['logged'])return $_SESSION['logged'];
         foreach($usersPasses as $user=>$pass) {
             if (isset($_COOKIE['log']) and $_COOKIE['log'] == md5($user . $pass)) { $_SESSION['logged'] = $user;return $user;}
-            elseif ($_POST['u'] == $user and $_POST['p'] == $pass]) {
+            elseif ($_POST['u'] == $user and $_POST['p'] == $pass ) {
                 setcookie('log', md5($user . $pass), 3600 * 24 * 365 * 10, '/');
                 $_SESSION['logged'] = $user;return $user;
             }
