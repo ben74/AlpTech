@@ -2385,7 +2385,7 @@ class fun /* extends base */
     */
     static function simpleLogin($usersPasses){
         static::ss();
-        if($_SESSION['logged'])return $_SESSION['logged'];
+        if(isset($_SESSION['logged']) && $_SESSION['logged'])return $_SESSION['logged'];
         foreach($usersPasses as $user=>$pass) {
             if (isset($_COOKIE['log']) and $_COOKIE['log'] == md5($user . $pass) { $_SESSION['logged'] = $user;return $user;}
             elseif ($_POST['u'] == $user and $_POST['p'] == $pass]) {
