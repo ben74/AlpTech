@@ -1535,7 +1535,7 @@ class fun /* extends base */
                 $intercepts('sql', $sql);
             }
 
-            if (Preg_match("~(\*/ |^)(create|update|alter|delete|replace) ~i", $sql)) {
+            if (Preg_match("~(\*/ |^)(create|update|alter|delete|replace) ~i", $sql)) {#
                 if (isset($_ENV['sqlTime']) and $_ENV['sqlTime']) {
                     $_ENV['sqlTime'][$sql] = round(microtime(1) - $a, 3);
                 }
@@ -2369,6 +2369,36 @@ class fun /* extends base */
         file_put_contents($f,'<?php return '.var_export($res,true).';');
         return $res;
     }
+
+    /**
+     * session_start wrapper returns session id
+     * @return void
+     */
+    static function ss()
+    {
+        static $t;
+        if ($t) return session_id();
+        $t = 1;
+        if (session_status() === PHP_SESSION_NONE) {session_start();}
+        return session_id();
+    }
+
+    /**
+    * SimpleLogin
+    */
+    static function simpleLogin($usersPasses){
+        static::ss();
+        foreach($usersPasses as $user=>$pass) {
+            if (isset($_COOKIE['log']) and $_COOKIE['log'] == md5($user . $pass))) $_SESSION['logged'] = $user;
+            elseif ($_POST['u'] == $user and $_POST['p'] == $pass]) {
+                setcookie('log', md5($user . $pass), 3600 * 24 * 365 * 10, '/');
+                $_SESSION['logged'] = $user;
+            } else {
+                die("<center>login:<br><form method=post><input name=u value=Username><br><input name=p value=p type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
+            }
+        }
+    }
+
 }
 
 return; ?>
