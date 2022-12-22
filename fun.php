@@ -2292,6 +2292,7 @@ class fun /* extends base */
                 file_put_contents($log,"\n}{  ".date('Y-m-d H:i:s').':'.json_encode([$to,$sub,$msg]),8);
             }
             $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->CharSet='UTF-8';
             $mail->DKIM_domain = $domain;
             $mail->DKIM_selector = $dkSel;
             $mail->DKIM_private = $pk;
