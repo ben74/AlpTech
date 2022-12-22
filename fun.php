@@ -2376,9 +2376,6 @@ class fun /* extends base */
      */
     static function ss()
     {
-        static $t;
-        if ($t) return session_id();
-        $t = 1;
         if (session_status() === PHP_SESSION_NONE) {session_start();}
         return session_id();
     }
@@ -2388,15 +2385,15 @@ class fun /* extends base */
     */
     static function simpleLogin($usersPasses){
         static::ss();
+        if($_SESSION['logged'])return $_SESSION['logged'];
         foreach($usersPasses as $user=>$pass) {
-            if (isset($_COOKIE['log']) and $_COOKIE['log'] == md5($user . $pass))) $_SESSION['logged'] = $user;
+            if (isset($_COOKIE['log']) and $_COOKIE['log'] == md5($user . $pass) { $_SESSION['logged'] = $user;return $user;}
             elseif ($_POST['u'] == $user and $_POST['p'] == $pass]) {
                 setcookie('log', md5($user . $pass), 3600 * 24 * 365 * 10, '/');
-                $_SESSION['logged'] = $user;
-            } else {
-                die("<center>login:<br><form method=post><input name=u value=Username><br><input name=p value=p type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
+                $_SESSION['logged'] = $user;return $user;
             }
         }
+        die("<center>login:<br><form method=post><input name=u value=Username><br><input name=p value=p type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
     }
 
 }
