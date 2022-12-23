@@ -2396,7 +2396,10 @@ class fun /* extends base */
         }
         die("<center>login:<br><form method=post><input name=u placeholder=Username><br><input name=p placeholder=password type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
     }
-
+    static $quotes=["'",'"'];
+    static $unquotes=["′",'″'];
+    static function str($x){return str_replace(static::$quotes,static::$unquotes,$x);}
+    static function unstr($x){return str_replace(static::$unquotes,static::$quotes,$x);}
 }
 
 return; ?>
