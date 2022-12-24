@@ -2419,7 +2419,7 @@ class fun /* extends base */
         $srcX = $srcY = $fixedW = $fixedH = 0;
         $webp = strpos($u, '.webp') ? true : false;
         $x = explode('.jpg__', $u);
-        $x[0] = $bd . str_replace(['tn/'], '', $x[0]) . '.jpg';
+        $x[0] = $bd . str_replace(['/tn/'], '/', $x[0]) . '.jpg';
         $x[1] = '_' . $x[1];// les paramètres
         if (!is_file($x[0])) {
             throw new \Exception('h404:nf:' . $u.'->'.$x[0] . ':' . __LINE__);
