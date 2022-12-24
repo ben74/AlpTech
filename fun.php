@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $t = 0, $conf = [], $_shared = [];#collectif tant
+    static $u,$uq,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function breakpoint($x)
     {
@@ -2396,12 +2396,21 @@ class fun /* extends base */
         }
         die("<center>login:<br><form method=post><input name=u placeholder=Username><br><input name=p placeholder=password type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
     }
-    static $quotes=["'",'"'];
-    static $unquotes=["′",'″'];
     static function str($x){return str_replace(static::$quotes,static::$unquotes,$x);}
     static function unstr($x){return str_replace(static::$unquotes,static::$quotes,$x);}
+    static function init(){
+
+        $u=explode('?',$_SERVER['REQUEST_URI']);static::$q=$q=(count($u)>1?end($u):'');static::$u=$u=implode('?',$u);
+        static::$u=$uq = trim(str_replace('?' . $q, '', $u), '/');
+
+        static::$h=$h=$_SERVER['HTTP_HOST'];
+        static::$local=(strpos($h,'127.0.0.1')!==FALSE);
+        static::$dr=$_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
+        static::$ip = $_SERVER['REMOTE_ADDR'];
+    }
 }
 
+fun::init();
 return; ?>
 
 TODO: myError, myException, découpage io::fpc
