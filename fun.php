@@ -2507,10 +2507,11 @@ class fun /* extends base */
 //  function imagecopyresampled($destI,$srcI,$dst_x,$dst_y,$src_x,$src_y,$dst_width,$dst_height,$src_width,$src_height): bool {}
         imagecopyresampled($tmp, $image, 0, 0, $srcX, $srcY, $finalW, $finalH, $capX, $capY);
         if ($webp and function_exists('imagewebp')) {// faster, better than jpeg
-            imagewebp($tmp, $f, $quality);
+            $exists=imagewebp($tmp, $f, $quality);
         } else {
-            imagejpeg($tmp, $f, $quality);
+            $exists=imagejpeg($tmp, $f, $quality);
         }
+        if(!$exists)throw new \exception('cant write '.$f);
         fun::r302('/' . $f . '#gen');
         return;
     }
