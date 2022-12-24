@@ -2521,8 +2521,7 @@ class fun /* extends base */
         $u = explode('?', $_SERVER['REQUEST_URI']);
         static::$q = $q = (count($u) > 1 ? end($u) : '');
         static::$u = $u = implode('?', $u);
-        $x = explode('.', $u);
-        static::$ext =count($x)?strtolower(end($x)):'';
+        static::$ext = (strpos($u,'.') && ($x = explode('.', $u))) ?strtolower(end($x)):'';
         static::$uq = trim(str_replace('?' . $q, '', $u), '/');
 
 
