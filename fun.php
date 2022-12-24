@@ -2540,16 +2540,15 @@ class fun /* extends base */
             }catch(\throwable $e){
                 fun::r404($e->getMessage());
             }
-        }
-        if(!static::$ext){
-            $f=trim(static::$uq,'./');
-            if(is_file($f.'.php')){
+        } elseif(!static::$ext){
+            $f=trim(static::$uq,'./').'.php';
+            if(is_file($f)){
                 fun::hl('HTTP/1.1 200 OK');
-                require_once $f.'.php';
+                require_once $f;
                 return;
             }
         }
-        fun::r404();
+        //fun::r404();
     }
 
 }
