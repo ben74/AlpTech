@@ -2539,7 +2539,7 @@ class fun /* extends base */
             }catch(\throwable $e){
                 fun::r404($e->getMessage());
             }
-        } elseif(!static::$ext){
+        } elseif(0 and !static::$ext){// Not good, kills current namespace
             $f=trim(static::$uq,'./').'.php';
             if(is_file($f)){
                 fun::hl('HTTP/1.1 200 OK');
