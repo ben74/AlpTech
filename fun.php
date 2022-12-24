@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function breakpoint($x)
     {
@@ -2521,7 +2521,10 @@ class fun /* extends base */
         $u = explode('?', $_SERVER['REQUEST_URI']);
         static::$q = $q = (count($u) > 1 ? end($u) : '');
         static::$u = $u = implode('?', $u);
+        $x = explode('.', $u);
+        static::$ext =count($x)?lower(end($x)):'';
         static::$uq = trim(str_replace('?' . $q, '', $u), '/');
+
 
         static::$ip = $_SERVER['REMOTE_ADDR'];
         static::$h = $h = $_SERVER['HTTP_HOST'];
@@ -2530,9 +2533,30 @@ class fun /* extends base */
 
     }
 
+    static function on404(){
+        if (in_array(static::$ext,['jpg','webp','png','gif'])) {
+            try{
+                fun::tnResizeOn404();
+            }catch(\throwable $e){
+                fun::r404($e->getMessage());
+            }
+        }
+        if(!static::$ext){
+            $f=trim(static::$uq,'./');
+            if(is_file($f.'.php')){
+                fun::hl('HTTP/1.1 200 OK');
+                require_once $f.'.php';
+                return;
+            }
+        }
+        fun::r404();
+    }
+
 }
 
 fun::init();
 return; ?>
 
+new XtaSys !
+new XtatiK
 TODO: myError, myException, découpage io::fpc
