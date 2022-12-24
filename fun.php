@@ -2415,7 +2415,7 @@ class fun /* extends base */
      * @return void
      */
     function tnResizeOn404($bd = '', $max = 800, $resizeW = [50, 100, 400, 800, 1200, 1600], $resizeH = [100, 200], $quality = 70){
-        $f=$u=static::$uq;//final filename
+        $f = $u= ltrim(static::$uq,'/');//final filename controller relative
         $srcX = $srcY = $fixedW = $fixedH = 0;
         $webp = strpos($u, '.webp') ? true : false;
         $x = explode('.jpg__', $u);
