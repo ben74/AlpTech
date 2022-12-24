@@ -2414,7 +2414,7 @@ class fun /* extends base */
      * @param $quality
      * @return void
      */
-    function tnResizeOn404($bd = '', $resizeW = [50, 100, 400, 800, 1200, 1600], $resizeH = [100, 200], $maxW = 1920, $quality = 70){
+    function tnResizeOn404($bd = '', $max = 800, $resizeW = [50, 100, 400, 800, 1200, 1600], $resizeH = [100, 200], $quality = 70){
         $f=$u=static::$uq;//final filename
         $srcX = $srcY = $fixedW = $fixedH = 0;
         $webp = strpos($u, '.webp') ? true : false;
@@ -2428,7 +2428,6 @@ class fun /* extends base */
         [$ow, $oh, $mime] = getimagesize($x[0]);
         $capX = $w = $ow;
         $capY = $h = $oh;
-        $max = 800;
         $r = $ow / $oh;
         $posData = 0;
         preg_match('~_pd([^_]+)~', $x[1], $m);
