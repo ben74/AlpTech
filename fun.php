@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $u,$uq,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $h,$u,$uq,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function breakpoint($x)
     {
