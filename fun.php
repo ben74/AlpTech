@@ -2408,6 +2408,122 @@ class fun /* extends base */
         static::$dr=$_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
         static::$ip = $_SERVER['REMOTE_ADDR'];
     }
+    /**
+     * Either resizes and die computed thumbnail or return error
+     *
+     * imgSource.jpg__w800.webp
+     * imgSource.jpg__r.webp
+     * pano-pano-visitationChateauAnnecyVueDepuisGrandJeanne_visitationChateauAnnecyVueDepuisGrandJeanne-15b.jpg__r2.webp
+     * cropRatioMiddle : pano-pano-visitationChateauAnnecyVueDepuisGrandJeanne_visitationChateauAnnecyVueDepuisGrandJeanne-15b.jpg__max800_r6.2_crm.webp
+     *
+     * @param $bd   ex : ../imgSources/ ( ends with slash )
+     * @param $resizeW
+     * @param $resizeH
+     * @param $maxW
+     * @param $quality
+     * @return void
+     */
+    function tnResizeOn404($bd = '', $resizeW = [50, 100, 400, 800, 1200, 1600], $resizeH = [100, 200], $maxW = 1920, $quality = 70){
+        $u=static::$uq;
+        $srcX = $srcY = $fixedW = $fixedH = 0;
+        $webp = strpos($u, '.webp') ? true : false;
+        $x = explode('.jpg__', $u);
+        $x[0] = $bd . str_replace(['/tn/'], '', $x[0]) . '.jpg';
+        $x[1] = '_' . $x[1];
+        if (!is_file($x[0])) {
+            throw new \Exception('h404:nf:' . $x[0] . ':' . __LINE__);
+        }
+
+        [$ow, $oh, $mime] = getimagesize($x[0]);
+        $capX = $w = $ow;
+        $capY = $h = $oh;
+        $max = 800;
+        $r = $ow / $oh;
+        $posData = 0;
+        preg_match('~_pd([^_]+)~', $x[1], $m);
+        if ($m && $m[1]) {
+            $posData = explode(',', $m[1]);
+        }
+        preg_match('~_w([0-9]+)~', $x[1], $m);
+        if ($m && $m[1]) {
+            $fixedW = $w = $m[1];
+            if (!in_array($w, $resizeW)) die('#' . __line__);
+        }
+        preg_match('~_h([0-9]+)~', $x[1], $m);
+        if ($m && $m[1]) {
+            $fixedH = $h = $m[1];
+            if (!in_array($h, $resizeH)) die('#' . __line__);
+        }
+        preg_match('~_max([0-9]+)~', $x[1], $m);
+        if ($m && $m[1]) {
+            $max = $m[1];
+        }
+        if (strpos($u, '_crm.webp') or strpos($u, '_crm.jpg')) {
+            preg_match('~_r([0-9\.]+)~', $x[1], $m);
+            if ($m && $m[1]) $r2 = $m[1];
+            if ($w > $max) {
+                $w = $max;
+            }
+            if ($h > $max) {
+                $h = $max;
+            }
+            if ($r2 > $r) {//wider -> déforme ( capY trop faible )
+                $h = intval($w / $r2);
+                if ($fixedH) {
+                    $h = $fixedH;
+                    $w = intval($h * $r2);
+                }
+                $capY = intval($ow / $r2);
+                $srcY = $oh / 2 - $capY / 2;// ow:3200,oh:2400,capx:3200,capY:1600, srcY:400
+            } else {// vertical plus haut -> limiter la propagation, prend tout la hauteur de l'image
+                $w = intval($h * $r2);
+                if ($w > $max) {
+                    $w = $max;
+                    $h = intval($w / $r2);
+                }
+                if ($fixedW) {
+                    $w = $fixedW;
+                    $h = intval($w / $r2);
+                }
+                $capX = intval($oh * $r2);
+                $srcX = $ow / 2 - $capX / 2;
+            }
+        } elseif (strpos($u, '_r.webp') or strpos($u, '_r.jpg')) {
+            if ($fixedW and !$fixedH) $h = intval($fixedW / $r);
+            elseif ($fixedH and !$fixedW) $w = intval($fixedH * $r);
+            if (!$w and !$h) die('#' . __line__);
+            $r = $ow / $oh;
+            if (!$h) $h = intval($w / $r);
+            if (!$w) $w = intval($h * $r);
+        } else {// adaptative h depending on w or vice versa
+            if (!$fixedH) $h = (int)($w / $r);// rm tn/IMG_20220920_193718.jpg__w800.webp              http://hp.127.0.0.1.nip.io/tn/IMG_20220920_193718.jpg__w800.webp#gen
+            if (!$fixedW) $w = (int)($h * $r);
+        }
+        $finalW = $w;
+        $finalH = $h;
+        $tmp = imagecreatetruecolor($finalW, $finalH);
+        if ($mime == 2) {
+            $image = imagecreatefromjpeg($x[0]);
+        } elseif ($mime == 3) {
+            $image = imagecreatefrompng($x[0]);
+        } elseif ($mime == 32) {
+            $image = imagecreatefromwebp($x[0]);
+        } else {
+            throw new \Exception('#' . __line__);
+        }
+        if ($posData) {
+            $a = 'todo ::';
+        }
+//  function imagecopyresampled($destI,$srcI,$dst_x,$dst_y,$src_x,$src_y,$dst_width,$dst_height,$src_width,$src_height): bool {}
+        imagecopyresampled($tmp, $image, 0, 0, $srcX, $srcY, $finalW, $finalH, $capX, $capY);
+        if ($webp and function_exists('imagewebp')) {// faster, better than jpeg
+            imagewebp($tmp, $f, $quality);
+        } else {
+            imagejpeg($tmp, $f, $quality);
+        }
+        fun::r302('/' . $f . '#gen');
+        die;
+    }
 }
 
 fun::init();
