@@ -2447,12 +2447,12 @@ class fun /* extends base */
         preg_match('~_w([0-9]+)~', $x[1], $m);
         if ($m && $m[1]) {
             $fixedW = $w = $m[1];
-            if (!in_array($w, $resizeW)) die('#' . __line__);
+            if (!in_array($w, $resizeW)) throw new \Exception('#resizew:' . __line__);
         }
         preg_match('~_h([0-9]+)~', $x[1], $m);
         if ($m && $m[1]) {
             $fixedH = $h = $m[1];
-            if (!in_array($h, $resizeH)) die('#' . __line__);
+            if (!in_array($h, $resizeH)) throw new \Exception('#resizeh:' . __line__);
         }
         preg_match('~_max([0-9]+)~', $x[1], $m);
         if ($m && $m[1]) {
@@ -2491,7 +2491,7 @@ class fun /* extends base */
         } elseif (strpos($u, '_r.webp') or strpos($u, '_r.jpg')) {
             if ($fixedW and !$fixedH) $h = intval($fixedW / $r);
             elseif ($fixedH and !$fixedW) $w = intval($fixedH * $r);
-            if (!$w and !$h) die('#' . __line__);
+            if (!$w and !$h) throw new \exception('#' . __line__);
             $r = $ow / $oh;
             if (!$h) $h = intval($w / $r);
             if (!$w) $w = intval($h * $r);
