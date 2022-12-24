@@ -2429,9 +2429,9 @@ class fun /* extends base */
         $webp = strpos($u, '.webp') ? true : false;
         $x = explode('.jpg__', $u);
         $x[0] = $bd . str_replace(['/tn/'], '', $x[0]) . '.jpg';
-        $x[1] = '_' . $x[1];
+        $x[1] = '_' . $x[1];// les paramètres
         if (!is_file($x[0])) {
-            throw new \Exception('h404:nf:' . $x[0] . ':' . __LINE__);
+            throw new \Exception('h404:nf:' . $u.'->'.$x[0] . ':' . __LINE__);
         }
 
         [$ow, $oh, $mime] = getimagesize($x[0]);
