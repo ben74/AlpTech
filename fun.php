@@ -2398,16 +2398,7 @@ class fun /* extends base */
     }
     static function str($x){return str_replace(static::$quotes,static::$unquotes,$x);}
     static function unstr($x){return str_replace(static::$unquotes,static::$quotes,$x);}
-    static function init(){
 
-        $u=explode('?',$_SERVER['REQUEST_URI']);static::$q=$q=(count($u)>1?end($u):'');static::$u=$u=implode('?',$u);
-        static::$u=$uq = trim(str_replace('?' . $q, '', $u), '/');
-
-        static::$h=$h=$_SERVER['HTTP_HOST'];
-        static::$local=(strpos($h,'127.0.0.1')!==FALSE);
-        static::$dr=$_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
-        static::$ip = $_SERVER['REMOTE_ADDR'];
-    }
     /**
      * Either resizes and die computed thumbnail or return error
      *
@@ -2431,7 +2422,7 @@ class fun /* extends base */
         $x[0] = $bd . str_replace(['/tn/'], '', $x[0]) . '.jpg';
         $x[1] = '_' . $x[1];// les paramètres
         if (!is_file($x[0])) {
-            throw new \Exception('h404:nf:' . $u.'->'.$x[0] . ':' . __LINE__);
+            throw new \Exception('h404:nf:' . static::$uq.'-'.$u.'->'.$x[0] . ':' . __LINE__);
         }
 
         [$ow, $oh, $mime] = getimagesize($x[0]);
@@ -2524,6 +2515,21 @@ class fun /* extends base */
         fun::r302('/' . $f . '#gen');
         die;
     }
+
+    static function init()
+    {
+        $u = explode('?', $_SERVER['REQUEST_URI']);
+        static::$q = $q = (count($u) > 1 ? end($u) : '');
+        static::$u = $u = implode('?', $u);
+        static::$uq = trim(str_replace('?' . $q, '', $u), '/');
+
+        static::$ip = $_SERVER['REMOTE_ADDR'];
+        static::$h = $h = $_SERVER['HTTP_HOST'];
+        static::$local=(strpos($h,'127.0.0.1')!==FALSE);
+        static::$dr = $_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
+
+    }
+
 }
 
 fun::init();
