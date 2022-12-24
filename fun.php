@@ -2522,7 +2522,7 @@ class fun /* extends base */
         static::$q = $q = (count($u) > 1 ? end($u) : '');
         static::$u = $u = implode('?', $u);
         $x = explode('.', $u);
-        static::$ext =count($x)?lower(end($x)):'';
+        static::$ext =count($x)?strtolower(end($x)):'';
         static::$uq = trim(str_replace('?' . $q, '', $u), '/');
 
 
