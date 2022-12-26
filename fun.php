@@ -2558,7 +2558,8 @@ class fun /* extends base */
     static function printExceptions(){
         \set_exception_handler('\Alptech\Wip\fun::exception_handler');
     }
-    static function exception_handler(Throwable $e) {
+
+    static function exception_handler(\Throwable $e) {
         echo "\n#exception: " . $e->getMessage();
     }
 
