@@ -1208,7 +1208,7 @@ class fun /* extends base */
 
     static function sql3($sql, $params=[])
     {
-        return static::sql(['sqlConnParameters' => fun::$connection,'sql' => $sql, 'params' => $params, 'errorCallback'=>function($e){ throw new \Exception($e);}]);
+        return static::sql(['sqlConnParameters' => fun::$connection,'sql' => $sql, 'params' => $params, 'errorCallback'=>function($a,$b){ throw new \Exception($a.' / '.$b);}]);
     }
 //  fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0, $sqlConnParameters = [])
@@ -2554,7 +2554,7 @@ class fun /* extends base */
         }
         //fun::r404();
     }
-
+/** dev functions wisth Quick And Dirty Development */
     static function printExceptions(){
         \set_exception_handler('\Alptech\Wip\fun::exception_handler');
     }
