@@ -2583,7 +2583,7 @@ class fun /* extends base */
         $dow=date('w', $x);
         [$date,$hour]=explode(' ',$x);
         [$y,$m,$d]=explode('-',$date);//[$h,$i,$s]=explode(':',$hour);
-        return $days[$dow-1].' '.$d.' '.$months[$m-1].' '.$y.' à '.$hour;
+        return ucfirst($days[$dow-1]).' '.$d.' '.ucfirst($months[$m-1]).' '.$y.' à '.$hour;
     }
 }
 
