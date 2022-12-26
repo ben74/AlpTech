@@ -2575,7 +2575,7 @@ class fun /* extends base */
         }
         echo"\n#error:".$errno.':'.$errfile.':'.$errline.':'.$errstr;
     }
-    static function getTitle($x){return trim(preg_replace('@ +@','',preg_replace('@[^0-9a-z]+@',' ',$x)));}
+    static function getTitle($x){return trim(preg_replace('@ +@',' ',preg_replace('@[^0-9a-z]+@',' ',$x)));}
 
     static function date2fr($x){
         $days=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
@@ -2583,7 +2583,7 @@ class fun /* extends base */
         $dow=date('w', $x);
         [$date,$hour]=explode(' ',$x);
         [$y,$m,$d]=explode('-',$date);//[$h,$i,$s]=explode(':',$hour);
-        return $days[$dow].' '.$d.' '.$months[$m].' '.$y.' à '.$hour;
+        return $days[$dow-1].' '.$d.' '.$months[$m-1].' '.$y.' à '.$hour;
     }
 }
 
