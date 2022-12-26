@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $connection,$ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function breakpoint($x)
     {
@@ -1204,6 +1204,11 @@ class fun /* extends base */
     static function sql2($sqlConnParameters,$sql, $params=[], $errorCallback = false )
     {
         return static::sql(['sqlConnParameters' => $sqlConnParameters,'sql' => $sql, 'params' => $params,'errorCallback'=>$errorCallback]);
+    }
+
+    static function sql3($sql, $params=[])
+    {
+        return static::sql(['sqlConnParameters' => fun::$connection,'sql' => $sql, 'params' => $params, 'errorCallback'=>function($e){ throw new \Exception($e);}]);
     }
 //  fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0, $sqlConnParameters = [])
