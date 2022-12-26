@@ -2577,6 +2577,14 @@ class fun /* extends base */
     }
     static function getTitle($x){return trim(preg_replace('@ +@','',preg_replace('@[^0-9a-z]+@',' ',$x)));}
 
+    static function date2fr($x){
+        $days=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+        $months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+        $dow=date('w', $x);
+        [$date,$hour]=explode(' ',$x);
+        [$y,$m,$d]=explode('-',$date);//[$h,$i,$s]=explode(':',$hour);
+        return $days[$dow].' '.$d.' '.$months[$m].' '.$y.' à '.$hour;
+    }
 }
 
 fun::init();
