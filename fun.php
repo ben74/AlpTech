@@ -2578,10 +2578,9 @@ class fun /* extends base */
     static function getTitle($x){return trim(preg_replace('@ +@',' ',preg_replace('@[^0-9a-z]+@',' ',$x)));}
 
     static function date2fr($x){
-        if(!is_numeric($x))$x=strtotime($x);
         $days=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
         $months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-        $dow=date('w', $x);
+        $dow=date('w', strtotime($x));
         [$date,$hour]=explode(' ',$x);
         [$y,$m,$d]=explode('-',$date);//[$h,$i,$s]=explode(':',$hour);
         return ucfirst($days[$dow-1]).' '.$d.' '.ucfirst($months[$m-1]).' '.$y.' à '.$hour;
