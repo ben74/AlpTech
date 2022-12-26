@@ -2555,6 +2555,25 @@ class fun /* extends base */
         //fun::r404();
     }
 
+    static function printExceptions(){
+        \set_exception_handler('\Alptech\Wip\fun::exception_handler');
+    }
+    static function exception_handler(Throwable $e) {
+        echo "\n#exception: " . $e->getMessage();
+    }
+
+    static function printErrors(){
+        \set_error_handler('\Alptech\Wip\fun::errorHandler');
+    }
+
+    static function errorHandler($errno, $errstr, $errfile, $errline)
+    {
+        if (!(error_reporting() & $errno)) {
+            return false;
+        }
+        echo"\n#error:".$errno.':'.$errfile.':'.$errline.':'.$errstr;
+    }
+
 }
 
 fun::init();
