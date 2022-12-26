@@ -2561,6 +2561,7 @@ class fun /* extends base */
 
     static function exception_handler(\Throwable $e) {
         echo "\n#exception: " . $e->getMessage();
+        return true;
     }
 
     static function printErrors(){
@@ -2574,6 +2575,7 @@ class fun /* extends base */
         }
         echo"\n#error:".$errno.':'.$errfile.':'.$errline.':'.$errstr;
     }
+    static function getTitle($x){return trim(preg_replace('@ +@','',preg_replace('@[^0-9a-z]+@',' ',$x)));}
 
 }
 
