@@ -448,7 +448,7 @@ class fun /* extends base */
         return fun::cup(['url' => $url, 'post' => $files, 'headers' => $headers + ['content-type: multipart/form-data'], 'timeout' => $timeout]);
     }
 
-    static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 10, $unsecure = 1, $forcePort = 0, $follow = 1)
+    static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 30, $unsecure = 1, $forcePort = 0, $follow = 1)
     {
         if (is_array($url)) {
             extract($url);
@@ -1502,14 +1502,14 @@ class fun /* extends base */
             } catch (\Throwable $e) {
                 if (strpos($e->getMessage(), 'Deadlock found when trying') and $retry < 3) {//SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock; try restarting transaction
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
-                } elseif (strpos($e->getMessage(), 'Lock wait timeout exceeded;') and $retry < 3) {//SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction
+                } elseif (strpos($e->getMessage(), 'Lock wait timeout exceeded;') and $retry < 3) {//SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transactionL.
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 } elseif (strpos($e->getMessage(), 'MySQL server has gone away') and $retry < 3) {//2006
                     unset($_ENV['pdo_' . $konnektion]);
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 }
                 throw $e;
-            }
+            }#
 
             if (!$success) {
                 //$cnx->errorInfo();
@@ -2401,8 +2401,27 @@ class fun /* extends base */
         }
         die("<center>login:<br><form method=post><input name=u placeholder=Username><br><input name=p placeholder=password type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
     }
-    static function str($x){return str_replace(static::$quotes,static::$unquotes,$x);}
-    static function unstr($x){return str_replace(static::$unquotes,static::$quotes,$x);}
+
+    static function str($x,$lv=0){
+        if (is_array($x)) {
+            foreach ($x as &$v) {
+                $v = static::str($x, $lv + 1);
+            }unset($v);
+        }else{
+            $x=str_replace(static::$quotes,static::$unquotes,$x);
+        }
+        return $x;
+    }
+    static function unstr($x,$lv=0){
+        if (is_array($x)) {
+            foreach ($x as &$v) {
+                $v = static::unstr($x, $lv + 1);
+            }unset($v);
+        }else{
+            $x=str_replace(static::$unquotes,static::$quotes,$x);
+        }
+        return $x;
+    }
 
     /**
      * Either resizes and die computed thumbnail or return error
@@ -2523,12 +2542,11 @@ class fun /* extends base */
 
     static function init()
     {
-        $u = explode('?', $_SERVER['REQUEST_URI']);
-        static::$q = $q = (count($u) > 1 ? end($u) : '');
-        static::$u = $u = implode('?', $u);
+        static::$u = $u = $_SERVER['REQUEST_URI'];
+        [$uq, $qs] = explode('?', $u);
+        static::$q = $qs;
+        static::$uq = trim($uq,'/');
         static::$ext = (strpos($u,'.') && ($x = explode('.', $u))) ?strtolower(end($x)):'';
-        static::$uq = trim(str_replace('?' . $q, '', $u), '/');
-
 
         static::$ip = $_SERVER['REMOTE_ADDR'];
         static::$h = $h = $_SERVER['HTTP_HOST'];
@@ -2585,11 +2603,32 @@ class fun /* extends base */
         [$y,$m,$d]=explode('-',$date);//[$h,$i,$s]=explode(':',$hour);
         return ucfirst($days[$dow]).' '.$d.' '.ucfirst($months[$m-1]).' '.$y.' à '.$hour;
     }
+
+    static function noAccents($x)
+    {
+        $ACCENTS = explode(';', "À;Á;Â;Ã;Ä;Å;à;á;â;ã;ä;å;Ò;Ó;Ô;Õ;Ö;Ø;ò;ó;ô;õ;ö;ø;È;É;Ê;Ë;è;é;ê;ë;Ç;ç;Ì;Í;Î;Ï;ì;í;î;ï;Ù;Ú;Û;Ü;ù;ú;û;ü;ý;ÿ;Ñ;ñ;€"); #â¬;ã©
+        $ACCENTS[] = chr(227) . chr(169);
+        $NACCENTS = str_split('AAAAAAaaaaaaOOOOOOooooooEEEEeeeeCcIIIIiiiiUUUUuuuuyyNnEe'); #e
+        #foreach($ACCENTS as $k=>$v){$r[$v]=$NACCENTS[$k];}unset($k,$v);
+        //$weirdChars = "(){}[]$%@!?:,/\|+_'~*^¨°`´²§µ£=<>&;?%";
+        return str_replace($ACCENTS, $NACCENTS, $x);
+    }
+
+    static function h()
+    {
+        static $t;
+        if ($t) return;
+        $t = 1;
+        header('Content-Type: text/html; charset=utf-8', 1, 200);
+    }
 }
 
 fun::init();
 return; ?>
-
+- Climbing on the porch as it seems, ( là il boit un café ) et pête le feu en mode capitaine flamme
 new XtaSys !
 new XtatiK
 TODO: myError, myException, découpage io::fpc
+
+
+config::get()
