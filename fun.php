@@ -1512,7 +1512,7 @@ class fun /* extends base */
             }#
 
             if (!$success) {
-                //$cnx->errorInfo();
+                //$cnx->errorInfo();;
                 $b = 'failure';
             }
 
@@ -2442,11 +2442,19 @@ class fun /* extends base */
         $f = $u= ltrim(static::$uq,'/');//final filename controller relative
         $srcX = $srcY = $fixedW = $fixedH = 0;
         $webp = strpos($u, '.webp') ? true : false;
-        $x = explode('.jpg__', $u);
-        $x[0] = $bd . str_replace(['/tn/'], '/', $x[0]) . '.jpg';
-        $x[1] = '_' . $x[1];// les paramètres
-        if (!is_file($x[0])) {
-            throw new \Exception('h404:nf:' . $u.'->'.$x[0] . ':' . __LINE__);
+
+        $exts=explode(',','png,jpg,jpeg,webp,gif,bmp');
+        foreach($exts as $ext){
+            $s = '.' . $ext . '__';
+            if (strpos($u, $s)) {
+                $x = explode($s);
+                $x[0] = $bd . str_replace(['/tn/'], '/', $x[0]) . '.'.$ext;
+                $x[1] = '_' . $x[1];// les paramètres
+                if (!is_file($x[0])) {
+                    throw new \Exception('h404:nf:' . $u.'->'.$x[0] . ':' . __LINE__);
+                }
+                break;
+            }
         }
 
         [$ow, $oh, $mime] = getimagesize($x[0]);
@@ -2550,7 +2558,7 @@ class fun /* extends base */
 
         static::$ip = $_SERVER['REMOTE_ADDR'];
         static::$h = $h = $_SERVER['HTTP_HOST'];
-        static::$local=(strpos($h,'127.0.0.1')!==FALSE);
+        static::$local=(strpos($h,'127.0.0.1')!==FALSE or substr($h,0,4)=='192.');
         static::$dr = $_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
 
     }
