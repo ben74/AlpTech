@@ -2447,7 +2447,7 @@ class fun /* extends base */
         foreach($exts as $ext){
             $s = '.' . $ext . '__';
             if (strpos($u, $s)) {
-                $x = explode($s);
+                $x = explode($s,$u);
                 $x[0] = $bd . str_replace(['/tn/'], '/', $x[0]) . '.'.$ext;
                 $x[1] = '_' . $x[1];// les paramètres
                 if (!is_file($x[0])) {
