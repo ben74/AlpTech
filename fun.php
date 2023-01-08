@@ -2442,6 +2442,7 @@ class fun /* extends base */
         $f = $u= ltrim(static::$uq,'/');//final filename controller relative
         $srcX = $srcY = $fixedW = $fixedH = 0;
         $webp = strpos($u, '.webp') ? true : false;
+        $finalExt=explode('.',$u);$finalExt=end($finalExt);
 
         $exts=explode(',','png,jpg,jpeg,webp,gif,bmp');
         foreach($exts as $ext){
@@ -2540,6 +2541,8 @@ class fun /* extends base */
         imagecopyresampled($tmp, $image, 0, 0, $srcX, $srcY, $finalW, $finalH, $capX, $capY);
         if ($webp and function_exists('imagewebp')) {// faster, better than jpeg
             $exists=imagewebp($tmp, $f, $quality);
+        } elseif($finalExt=='.png') {
+            $exists=imagepng($tmp, $f, 9);
         } else {
             $exists=imagejpeg($tmp, $f, $quality);
         }
