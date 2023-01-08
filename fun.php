@@ -2537,11 +2537,20 @@ class fun /* extends base */
         if ($posData) {
             $a = 'todo ::';
         }
+
+
+        if (in_array($finalExt, ['png', 'webp'])) {
+            imagealphablending($tmp, false);
+            imagesavealpha($tmp, true);
+            $transparent = imagecolorallocatealpha($tmp, 255, 255, 255, 127);
+            imagefilledrectangle($tmp, 0, 0, $finalW, $finalH, $transparent);
+        }
+
 //  function imagecopyresampled($destI,$srcI,$dst_x,$dst_y,$src_x,$src_y,$dst_width,$dst_height,$src_width,$src_height): bool {}
         imagecopyresampled($tmp, $image, 0, 0, $srcX, $srcY, $finalW, $finalH, $capX, $capY);
         if ($webp and function_exists('imagewebp')) {// faster, better than jpeg
             $exists=imagewebp($tmp, $f, $quality);
-        } elseif($finalExt=='.png') {
+        } elseif($finalExt == 'png') {
             $exists=imagepng($tmp, $f, 9);
         } else {
             $exists=imagejpeg($tmp, $f, $quality);
