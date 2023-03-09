@@ -1490,7 +1490,7 @@ class fun /* extends base */
                 $res = $kon->query('SELECT CHANGES()')->fetchAll()[0]['CHANGES()'];
             }
 
-        }/*catch(\throwable $e) {//PDOException;
+        /*}catch(\throwable $e) {//PDOException;
             return "#exception:" . $e->getMessage();
         }*/
         return $res;
