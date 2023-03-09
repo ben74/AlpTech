@@ -1702,14 +1702,6 @@ class fun /* extends base */
                 $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
             }
 
-            if (!$res and $unikk) {
-                return null;
-            }
-//if(!isset($x['unikk'])) in previous results
-            if ($unikk and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
-                return null;
-            }
-
             return $res;
 
         } catch (\Throwable $_e) {
