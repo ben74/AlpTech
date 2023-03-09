@@ -478,6 +478,7 @@ class fun /* extends base */
             $opts[CURLOPT_POST] = 1;
             $opts[CURLOPT_POSTFIELDS] = $post;#$url2Callback[$url]['post']
         }
+        // 3swift:138:11749914»»  {"type":2,"message":"curl_setopt_array(): supplied resource is not a valid File-Handle resource","file":"\/var\/www\/html\/vendor\/alptech\/wip\/fun.php","line":481}
         \curl_setopt_array($ch, $opts);
         $result = \curl_exec($ch);
         $info = \curl_getinfo($ch);
@@ -486,6 +487,21 @@ class fun /* extends base */
         $header = substr($result, 0, $info['header_size']);
         $contents = substr($result, $info['header_size']);
         return compact('contents', 'header', 'info', 'error', 'opts');
+    }
+
+    static function cuj($url, $jsonPayload){
+        return static::cup($url, [], $jsonPayload, ['Content-Type: application/json']);
+    }
+
+    static function fDl($distant, $local)
+    {
+        $fh = fopen($local, 'w');
+        $co = [CURLOPT_FILE => $fh, CURLOPT_FOLLOWLOCATION => 1, CURLOPT_NOPROGRESS => true, CURLOPT_BUFFERSIZE => CURL_MAX_READ_SIZE];#
+        $co[CURLOPT_HEADER] = $co[CURLINFO_HEADER_OUT] = $co[CURLOPT_VERBOSE] = false;
+        $res = static::cup($distant, $co, [], [], 999, 1);
+        \fclose($fh);
+        $fh = null;
+        return $res;
     }
 
     static function cuo($opts)
@@ -1434,6 +1450,84 @@ class fun /* extends base */
         return $arr;
     }
 
+    static function sqlite($db, $sql = null, $params = null/*, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = []*/){
+        $kon=null;
+        if (is_array($db)) extract($db);// un fichier par table et basta, à moins de vouloir effectuer des jointures ...
+        try {
+            if (isset($_ENV['sqlite_' . $db])) {
+                $kon=$_ENV['sqlite_' . $db];
+            }else{
+                $kon = $_ENV['sqlite_' . $db] = new \PDO("sqlite:".$db);
+                $kon->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+                $kon->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+            }
+            $verbs=[
+                'select'=>(stripos($sql,'select ') !== FALSE ? 1+stripos($sql,'select ') : null ),
+                'insert'=>(stripos($sql,'insert ') !== FALSE ? 1+stripos($sql,'insert ') : null ),
+                'update'=>(stripos($sql,'update ') !== FALSE ? 1+stripos($sql,'update ') : null ),
+                'delete'=>(stripos($sql,'delete ') !== FALSE ? 1+stripos($sql,'delete ') : null ),
+                'create'=>(stripos($sql,'create ') !== FALSE ? 1+stripos($sql,'create ') : null ),
+                'truncate'=>(stripos($sql,'truncate ') !== FALSE ? 1+stripos($sql,'truncate ') : null ),
+            ];
+            asort($verbs);
+            $verb=array_keys(array_filter($verbs))[0];
+            $sql=trim($sql,"\n\r\t ;").';';
+
+            if($params){
+                $res = $kon->prepare($sql);
+                $res->execute($params);
+            }elseif($verb=='select'){
+                $res = $kon->query($sql);//$nbres = count($res);
+            }else{
+                $res = $kon->exec($sql);
+            }
+
+            if ($verb == 'select') {
+                $res = static::sqlClassifier($sql, $res->fetchAll());
+            } elseif ($verb == 'insert') {
+                $res = $kon->lastInsertId();
+            } elseif ($verb == 'update') {
+                $res = $kon->query('SELECT CHANGES()')->fetchAll()[0]['CHANGES()'];
+            }
+
+        }catch(\throwable $e) {//PDOException;
+            return "#exception:" . $e->getMessage();
+        }
+        return $res;
+    }
+
+    static function sqlClassifier($sql, $data)
+    {// as ARRAYK, beware/
+        $arrayk = strpos($sql, 'as ARRAYK');#array_key_exists('ARRAYK', $x);# (isset($x['ARRAYK']) or is_null($x['ARRAYK']));
+        $pkid = strpos($sql, 'as pkid');#array_key_exists('pkid', $x);#(isset($x['pkid']) or is_null($x['pkid']));
+        $unikk = strpos($sql, 'as unikk');#array_key_exists('unikk', $x);#(isset($x['unikk']) or is_null($x['unikk']));
+        $roww = strpos($sql, 'as roww');#array_key_exists('roww', $x);#(isset($x['roww']) or is_null($x['roww']));
+        if (!$arrayk && !$pkid && !$unikk && !$roww) return $data;
+        $res=[];
+        foreach ($data as $x) {
+            if ($arrayk and $pkid and $unikk) {// 2 dmin
+                $res[$x['ARRAYK']][$x['pkid']] = $x['unikk'];
+            } elseif ($arrayk and $unikk) {// 1 dim
+                $res[$x['ARRAYK']][] = $x['unikk'];
+            } elseif ($arrayk and $pkid) {
+                $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
+            } elseif ($arrayk) {
+                $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
+            } elseif ($unikk) {
+                return $x['unikk'];#single expectation return result
+            } elseif ($pkid and $roww) {
+                $res[$x['pkid']] = $x['roww'];#single expectation return result
+            } elseif ($pkid) {
+                $res[$x['pkid']] = $x;#named pkid row
+            } elseif ($roww) {
+                $res[] = $x['roww'];#single expectation per row
+            } else {
+                $res[] = $x;
+            }
+        }
+        return $res;
+    }
+
     static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [])
     {
         static $nbr = 0;
@@ -1573,12 +1667,6 @@ class fun /* extends base */
                 $b = microtime(1);
             }
             $res = [];
-// as ARRAYK, beware/
-            $arrayk = strpos($sql, 'as ARRAYK');#array_key_exists('ARRAYK', $x);# (isset($x['ARRAYK']) or is_null($x['ARRAYK']));
-            $pkid = strpos($sql, 'as pkid');#array_key_exists('pkid', $x);#(isset($x['pkid']) or is_null($x['pkid']));
-            $unikk = strpos($sql, 'as unikk');#array_key_exists('unikk', $x);#(isset($x['unikk']) or is_null($x['unikk']));
-            $roww = strpos($sql, 'as roww');#array_key_exists('roww', $x);#(isset($x['roww']) or is_null($x['roww']));
-
             while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
                 if ($search) {
                     foreach ($x as $k => $v) {
@@ -1587,26 +1675,11 @@ class fun /* extends base */
                         }
                     }
                 }
-                if ($arrayk and $pkid and $unikk) {// 2 dmin
-                    $res[$x['ARRAYK']][$x['pkid']] = $x['unikk'];
-                } elseif ($arrayk and $unikk) {// 1 dim
-                    $res[$x['ARRAYK']][] = $x['unikk'];
-                } elseif ($arrayk and $pkid) {
-                    $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
-                } elseif ($arrayk) {
-                    $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
-                } elseif ($unikk) {
-                    return $x['unikk'];#single expectation return result
-                } elseif ($pkid and $roww) {
-                    $res[$x['pkid']] = $x['roww'];#single expectation return result
-                } elseif ($pkid) {
-                    $res[$x['pkid']] = $x;#named pkid row
-                } elseif ($roww) {
-                    $res[] = $x['roww'];#single expectation per row
-                } else {
-                    $res[] = $x;
-                }
+                $res[]=$x;
             }
+
+            $res = static::sqlClassifier($sql, $res);
+            // end pdo assoc
 
             if (isset($_ENV['sqlLog']) and $_ENV['sqlLog']) {
                 file_put_contents($_ENV['sqlLog'], " fetched > " . (round(microtime(1) - $b, 3)), 8);
@@ -2645,10 +2718,4 @@ class fun /* extends base */
 
 fun::init();
 return; ?>
-- Climbing on the porch as it seems, ( là il boit un café ) et pête le feu en mode capitaine flamme
-new XtaSys !
-new XtatiK
-TODO: myError, myException, découpage io::fpc
 
-
-config::get()
