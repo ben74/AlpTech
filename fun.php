@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $connection,$ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $connection,$ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function breakpoint($x=null)
     {
@@ -2637,17 +2637,51 @@ class fun /* extends base */
 
     static function init()
     {
-        static::$u = $u = $_SERVER['REQUEST_URI'];
-        [$uq, $qs] = explode('?', $u);
-        static::$q = $qs;
-        static::$uq = trim($uq,'/');
-        static::$ext = (strpos($u,'.') && ($x = explode('.', $u))) ?strtolower(end($x)):'';
+        if (isset($GLOBALS['argv'])) {
+            $a = $GLOBALS['argv'];
+            static::$local = 1;
+            static::$ext = 'cli';
+            static::$ip = '127.0.0.1';
+            $script = array_shift($a);
+            if (strpos($script, '/') === FALSE){
+                $script = \getcwd().'/'.$script;
+            }
+            static::$uq = static::$u = $script;//  $_SERVER['PWD']
+            static::$q = implode(',',$a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
+            foreach($a as $v) {
+                if (($decoded = static::jsonValid($v)) && $decoded) {
+                    foreach ($decoded as $k => $v) {
+                        static::$args[$k] = $_GET[$k] = $v;
+                    }
+                }elseif (preg_match('/^--([^=]+)=(.*)/', $v, $m)) {
+                    static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
+                } elseif (preg_match('/^([^=]+)=([^=]+)/', $v, $m)) {
+                    static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
+                }
+            }
+            static::$dr = \dirname(static::$u);
+        }else{// http forwarded request
+            static::$u = $u = $_SERVER['REQUEST_URI'];
+            [$uq, $qs] = explode('?', $u);
+            static::$q = $qs;
+            static::$uq = trim($uq,'/');
+            static::$ext = (strpos($u,'.') && ($x = explode('.', $u))) ?strtolower(end($x)):'';
 
-        static::$ip = $_SERVER['REMOTE_ADDR'];
-        static::$h = $h = $_SERVER['HTTP_HOST'];
-        static::$local=(strpos($h,'127.0.0.1')!==FALSE or substr($h,0,4)=='192.');
-        static::$dr = $_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
+            static::$ip = $_SERVER['REMOTE_ADDR'];
+            static::$h = $h = $_SERVER['HTTP_HOST'];
+            static::$local=(strpos($h,'127.0.0.1')!==FALSE or substr($h,0,4)=='192.');
+            static::$dr = $_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
+        }
+    }
 
+    static function jsonValid($json, $asArray = true)
+    {
+        $json = trim($json, "\"'\n\r\t ");
+        if (!in_array(substr($json, 0, 1), ['[', '{']) or !in_array(substr($json, -1), [']', '}'])) {
+            return null;
+        }
+        $json = @json_decode($json, $asArray);
+        return $json;
     }
 
     static function on404(){
@@ -2720,4 +2754,3 @@ class fun /* extends base */
 
 fun::init();
 return; ?>
-
