@@ -2640,13 +2640,14 @@ class fun /* extends base */
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
             static::$local = 1;
-            static::$ext = 'cli';
+            static::$h =static::$ext = 'cli';
             static::$ip = '127.0.0.1';
             $script = array_shift($a);
             if (strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
             static::$uq = static::$u = $script;//  $_SERVER['PWD']
+            static::$dr = \dirname(static::$u);
             static::$q = implode(',',$a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
             foreach($a as $v) {
                 if (($decoded = static::jsonValid($v)) && $decoded) {
@@ -2659,7 +2660,7 @@ class fun /* extends base */
                     static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 }
             }
-            static::$dr = \dirname(static::$u);
+
         }else{// http forwarded request
             static::$u = $u = $_SERVER['REQUEST_URI'];
             [$uq, $qs] = explode('?', $u);
