@@ -1453,7 +1453,7 @@ class fun /* extends base */
     static function sqlite($db, $sql = null, $params = null/*, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = []*/){
         $kon=null;
         if (is_array($db)) extract($db);// un fichier par table et basta, à moins de vouloir effectuer des jointures ...
-        try {
+        //try {
             if (isset($_ENV['sqlite_' . $db])) {
                 $kon=$_ENV['sqlite_' . $db];
             }else{
@@ -1490,9 +1490,9 @@ class fun /* extends base */
                 $res = $kon->query('SELECT CHANGES()')->fetchAll()[0]['CHANGES()'];
             }
 
-        }catch(\throwable $e) {//PDOException;
+        }/*catch(\throwable $e) {//PDOException;
             return "#exception:" . $e->getMessage();
-        }
+        }*/
         return $res;
     }
 
