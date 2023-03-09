@@ -2634,10 +2634,10 @@ class fun /* extends base */
         fun::r302('/' . $f . '#gen');
         return;
     }
-
-    static function out($out){
+// Strips of Html Tags for Http output ..
+    static function cleanHtml($out){
         if(static::$env == 'http'){
-            return htmlentities($out);
+            return \htmlentities($out);
         }
         return $out;
     }
