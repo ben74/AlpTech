@@ -6,7 +6,7 @@
 ---
 Then run code sample :
 
-        php test.php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3 --e=willEvaluateAllThoseParametersAs_HTTP_GET;
+        php test.php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3 --e=<scriptwillEvaluateAllThoseParametersAs_HTTP_GET | jq;
         # or 
         http://127.0.0.1/test.php?a=1&b=3&c=sleep,GET_HOST_NAME,drop,truncate,delete,cast(,ascii(,char(,<script,<ifram,<img
 

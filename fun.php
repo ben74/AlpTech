@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $connection,$ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function breakpoint($x=null)
     {
@@ -2635,12 +2635,19 @@ class fun /* extends base */
         return;
     }
 
+    static function out($out){
+        if(static::$env == 'http'){
+            return htmlentities($out);
+        }
+        return $out;
+    }
+
     static function init()
     {
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
             static::$local = 1;
-            static::$h = static::$ext = 'cli';
+            static::$env = static::$h = static::$ext = 'cli';
             static::$ip = '127.0.0.1';
             $script = array_shift($a);
             if (strpos($script, '/') === FALSE){
@@ -2665,6 +2672,7 @@ class fun /* extends base */
             static::$u = $u = $_SERVER['REQUEST_URI'];
             [$uq, $qs] = explode('?', $u);
             static::$q = $qs;
+            static::$env = 'http';
             static::$uq = trim($uq,'/');
             static::$ext = (strpos($u,'.') && ($x = explode('.', $u))) ?strtolower(end($x)):'';
 
