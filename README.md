@@ -13,9 +13,12 @@ Then run code sample 1
 
 - Conf file is located at conf.php ( duplicated from default.conf ) at bootstrap
 ---
-- In order to use a simple request firewall :
+  - In order to use a simple request firewall :
  
-        if(!fun::$local)firewall();// Runs firewall in HTTP mode, try uploading a .php file, or some Obvious Injection Patterns
+          if (!fun::$local) {// Runs firewall in HTTP mode, try uploading a .php file, or some Obvious Injection Patterns
+              $blocked = firewall();
+              if ($blocked) die($blocked);
+          }
 
 - Copy vendor/alptech/wip/alptech.php to your directory root in order to test some things like : 
 > - /alptech.php # loads framework, migrations, and debugs a catched error, then edit conf.php file which is a replica of default.conf.php ( mysql_user, password and database)
