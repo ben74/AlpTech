@@ -2637,7 +2637,8 @@ class fun /* extends base */
 // Strips of Html Tags for Http output ..
     static function cleanHtml($out){
         if(static::$env == 'http'){
-            return \htmlentities($out);
+            return \str_replace(['<','>'],['&lt;','&gt;'],$out);
+            //return \htmlentities($out);
         }
         return $out;
     }
