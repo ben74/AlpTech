@@ -19,6 +19,10 @@ class fun /* extends base */
         return __FILE__ . __LINE__;#
     }
 
+    static function blockMaliciousRequests(){
+        return static::firewall();
+    }
+
     static function firewall($url = null, $rawBody = null, $req = null, $lp = null, $files = null)
     {
         if (!$lp) {
@@ -32,7 +36,6 @@ class fun /* extends base */
         }
         if (!$rawBody) {
             $data = fun::getBody();
-            $b = 1;
         }
         if (!$req and $_REQUEST) {
             $req = $_REQUEST;
