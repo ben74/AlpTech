@@ -8,10 +8,10 @@ class fun /* extends base */
 {
     static $connection,$ext,$h,$u,$uq,$dr,$q,$ip,$local,$env,$t = 0, $conf = [], $_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
-    static function breakpoint($x)
+    static function breakpoint($x=null)
     {
         $args = func_get_args();
-        $breakpoint = 'here';
+        $breakpoint = 'here -- usefull when using xDebug';
     }
 
     static function main()
@@ -19,7 +19,7 @@ class fun /* extends base */
         return __FILE__ . __LINE__;#
     }
 
-    static function blockMaliciousRequests(){
+    static function blockMaliciousRequests(){// Alias of
         return static::firewall();
     }
 
