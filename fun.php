@@ -1450,7 +1450,7 @@ class fun /* extends base */
         return $arr;
     }
 
-    static function sqlite($db, $sql = null, $params = null/*, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = []*/){
+    static function sqlite($db, $sql = null, $params = null, $cb = null/*, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = []*/){
         $kon=null;
         if (is_array($db)) extract($db);// un fichier par table et basta, à moins de vouloir effectuer des jointures ...
         //try {
@@ -1483,7 +1483,11 @@ class fun /* extends base */
             }
 
             if ($verb == 'select') {
-                $res = static::sqlClassifier($sql, $res->fetchAll());
+                $res = $res->fetchAll();
+                if ($cb) {
+                    $res = $cb($res);
+                }
+                $res = static::sqlClassifier($sql, $res);
             } elseif ($verb == 'insert') {
                 $res = $kon->lastInsertId();
             } elseif ($verb == 'update') {
@@ -1528,7 +1532,7 @@ class fun /* extends base */
         return $res;
     }
 
-    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [])
+    static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [], $cb = null)
     {
         static $nbr = 0;
         //$cn->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
@@ -1668,6 +1672,9 @@ class fun /* extends base */
             }
             $res = [];
             while ($x = $cmd->fetch(\PDO::FETCH_ASSOC)) {
+                if ($cb) {// for long results or custom array transforms .. spawn processing to child processes ?
+                    $x = $cb($x);
+                }
                 if ($search) {
                     foreach ($x as $k => $v) {
                         if (preg_match('~' . $search . '~i', $v)) {
