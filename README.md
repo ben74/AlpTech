@@ -4,19 +4,18 @@
         composer require alptech/wip;
         cp vendor/alptech/wip/test.php test.php;
 ---
-Then run code sample 1
+Then run code sample :
 
         php test.php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3 --e=willEvaluateAllThoseParametersAs_HTTP_GET;
         # or 
-        http://127.0.0.1/test.php?a=1&b=3
-
+        http://127.0.0.1/test.php?a=1&b=3&c=sleep,GET_HOST_NAME,drop,truncate,delete,cast(,ascii(,char(,<script,<ifram,<img
 
 - Conf file is located at conf.php ( duplicated from default.conf ) at bootstrap
 ---
   - In order to use a simple request firewall :
  
-          if (!fun::$local) {// Runs firewall in HTTP mode, try uploading a .php file, or some Obvious Injection Patterns
-              $blocked = firewall();
+          if (fun::$h != 'cli') {// Runs firewall in HTTP mode, try uploading a .php file, or some Obvious Injection Patterns
+              $blocked = fun::firewall();
               if ($blocked) die($blocked);
           }
 

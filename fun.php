@@ -2640,7 +2640,7 @@ class fun /* extends base */
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
             static::$local = 1;
-            static::$h =static::$ext = 'cli';
+            static::$h = static::$ext = 'cli';
             static::$ip = '127.0.0.1';
             $script = array_shift($a);
             if (strpos($script, '/') === FALSE){
