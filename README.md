@@ -1,18 +1,21 @@
 ###  AlpTech experimental tools, debug and functions !
 - Contains various features, bugFixes / debug for drupal core / modules
-
-        composer require alptech/wip
 ---
+        composer require alptech/wip;
+        cp vendor/alptech/wip/test.php test.php;
+---
+Then run code sample 1
+
+        php test.php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3 --e=willEvaluateAllThoseParametersAs_HTTP_GET;
+        # or 
+        http://127.0.0.1/test.php?a=1&b=3
+
+
 - Conf file is located at conf.php ( duplicated from default.conf ) at bootstrap
 ---
-- Copy and paste this in order to use as simple firewall :
+- In order to use a simple request firewall :
  
-        if(isset($_SERVER['REQUEST_URI'])){
-             require_once'vendor/autoload.php';use AlpTech\Wip\fun;
-             $isblocked=fun::blockMaliciousRequests();
-             if($isblocked){fun::r404($isblocked);}
-             #fun::dbM($isblocked,'blocked','secu.log');#append to optional log file or send it to bus / logCollector
-         }
+        if(!fun::$local)firewall();// Runs firewall in HTTP mode, try uploading a .php file, or some Obvious Injection Patterns
 
 - Copy vendor/alptech/wip/alptech.php to your directory root in order to test some things like : 
 > - /alptech.php # loads framework, migrations, and debugs a catched error, then edit conf.php file which is a replica of default.conf.php ( mysql_user, password and database)
@@ -23,4 +26,4 @@
 
 ---
 ![visitors](https://visitor-badge.glitch.me/badge?page_id=gh:ben74:alpow:wip)
-© 2020 <a href='//alptech.dev' title='alptech'>Alptech Technologies</a> 
+© 2023 <a href='//alptech.dev' title='alptech'>Alptech Technologies</a> 
