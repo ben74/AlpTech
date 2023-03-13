@@ -26,7 +26,7 @@ class fun /* extends base */
     static function firewall($url = null, $rawBody = null, $req = null, $lp = null, $files = null)
     {
         if (!$lp) {
-            $lp = fun::getConf('logs');
+            $lp = static::getConf('logs');
         }
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
@@ -35,7 +35,7 @@ class fun /* extends base */
             }#and querystring}
         }
         if (!$rawBody) {
-            $data = fun::getBody();
+            $data = static::getBody();
         }
         if (!$req and $_REQUEST) {
             $req = $_REQUEST;
@@ -44,14 +44,14 @@ class fun /* extends base */
             $files = $_FILES;
         }
         if ($url) {
-            $x = fun::injectionPattern($url);#check the uri along with query string .. avoiding injection via rewriting within where like requests ..
+            $x = static::injectionPattern($url);#check the uri along with query string .. avoiding injection via rewriting within where like requests ..
             if ($x) {
                 return 'injection pattern ' . $x . ' in url ' . $url;#and querystring
             }
         }
 
         if ($rawBody) {
-            $x = fun::injectionPattern($rawBody, 'rawbody');#check the uri alondg with query string
+            $x = static::injectionPattern($rawBody, 'rawbody');#check the uri alondg with query string
             if ($x) {
                 return 'injection pattern ' . $x . ' in rawBody';
             }
@@ -62,11 +62,11 @@ class fun /* extends base */
                 if (in_array($k, ['contacts_societe', 'contacts_message'])) {
                     continue;
                 }#skip those
-                $x = fun::injectionPattern($v);
+                $x = static::injectionPattern($v);
                 if ($x) {
                     return 'injection pattern k:' . $x . ' in ' . $v;
                 }
-                $x = fun::injectionPattern($k);
+                $x = static::injectionPattern($k);
                 if ($x) {
                     return 'injection pattern v:' . $x . ' in ' . $k;
                 }
@@ -81,7 +81,7 @@ class fun /* extends base */
             if (preg_match('~":"[^\"]+\.php[^\"]*"~i', $json, $m)) {
                 return 'complex nested file upload: ' . $m[0];
             }/*
-            $foundUploads = fun::searchInArrayDepths($files, ['name'], '~\.php~');
+            $foundUploads = static::searchInArrayDepths($files, ['name'], '~\.php~');
             if ($foundUploads) {
                 return 'deep file upload: ' . json_encode($foundUploads);
             }*/
@@ -94,7 +94,7 @@ class fun /* extends base */
         /* recursive returns first positive match */
         if (is_array($x)) {
             foreach ($x as $v) {
-                $res = fun::injectionPattern($v);
+                $res = static::injectionPattern($v);
                 if ($res && 'returns first found') {
                     return $res;
                 }
@@ -136,7 +136,7 @@ class fun /* extends base */
     static function _die($x = null)
     {
         $_ENV['die'] = 1;
-        fun::gt('_die, breakpoint here is a good idea');#caught at shutdown function, is neat :)
+        static::gt('_die, breakpoint here is a good idea');#caught at shutdown function, is neat :)
         if ($x && in_array(gettype($x), ['array', 'object'])) {
             print_r($x);
         } elseif ($x) {
@@ -150,7 +150,7 @@ class fun /* extends base */
     {
         if ($y) null;
         header('HTTP/1.0 404 Not Found', 1, 404);
-        fun::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
+        static::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
     }
 
     static function hl($a = '', $b = true, $c = null)
@@ -163,29 +163,29 @@ class fun /* extends base */
         if ($virtual) {
             return "r302::$x";
         }
-        fun::hl('Location: ' . $x, 1, 302);
-        fun::_die();
+        static::hl('Location: ' . $x, 1, 302);
+        static::_die();
     }
 
     static function dbm($x, $sub = null, $f = null)
     {// todo:if config set send debug to url ....
         if ($f) null;
-        if (!fun::getConf('sendLogs') || !fun::getConf('logCollectorUrl')) {
+        if (!static::getConf('sendLogs') || !static::getConf('logCollectorUrl')) {
             return;
         }
         #return;
         if (0 and (DEV or LOCAL)) {
             return;
         }#$a=1;DEVBREAKPOINT
-        $bt = fun::bt(1);
+        $bt = static::bt(1);
         if (!$sub) {
             $sub = $_ENV['h'] . ' debug';
         }
 
-        $json = ['host' => fun::getConf('host'), 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
-        $pk = md5(fun::getConf('logCollectorSecret') . date(str_replace("%", "", fun::getConf('logCollectorSeed'))));
+        $json = ['host' => static::getConf('host'), 'type' => 'debug', 'k' => $sub, 'k2' => $_ENV['h'] . $_ENV['u'], 'v' => $x];
+        $pk = md5(static::getConf('logCollectorSecret') . date(str_replace("%", "", static::getConf('logCollectorSeed'))));
         $headers = ["Cookie: pk=" . $pk . ';XDEBUG_SESSION=1'];
-        $url = fun::getConf('logCollectorUrl');
+        $url = static::getConf('logCollectorUrl');
         $opt = [
             10015 => json_encode($json),#post payload
             10023 => $headers,#all headers as one array, sets
@@ -203,7 +203,7 @@ class fun /* extends base */
             41 => 1,
             58 => 1,  #?? Follow Return Headers
         ];
-        $_sent = fun::cuo($opt);
+        $_sent = static::cuo($opt);
         return;
 
         $opt = $headers = [];
@@ -228,13 +228,13 @@ class fun /* extends base */
                     10
                 )
         ];
-        $_sent = fun::cup($url, $opt, $post, $headers, 1);
+        $_sent = static::cup($url, $opt, $post, $headers, 1);
         return;
         /*
         foreach($_ENV['debugMails'] as $mail){
             wmail($mail, $sub, '<pre>' . $sub . ' -- ' . date('YmdHis') . ' ' . $_ENV['h'].$_ENV['u'] . "  {\n" . print_r(compact('x', 'bt') + ['host' => $_ENV['h'], 'post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']], 1));
         }*/
-        fun::db($x, $f);
+        static::db($x, $f);
     }
 
     static function db($x, $f = null)
@@ -245,7 +245,7 @@ class fun /* extends base */
         if (strpos($f, $_ENV['lp']) === false) {#anom.log
             $f = $_ENV['lp'] . $f;
         }
-        $bt = fun::bt(1);
+        $bt = static::bt(1);
         io::fpc($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
     }
 
@@ -254,7 +254,7 @@ class fun /* extends base */
         $found = [];
         foreach ($array as $k => $v) {
             if (is_array($v)) {
-                $found = array_merge($found, fun::arrayContains($v, $contains, $lv + 1, array_merge($bk, [$k])));
+                $found = array_merge($found, static::arrayContains($v, $contains, $lv + 1, array_merge($bk, [$k])));
             } elseif (preg_match($contains, $v)) {
                 #_die(["found:$k"=>$v]);
                 $found[] = [$k => $v];
@@ -274,7 +274,7 @@ class fun /* extends base */
         foreach ($keys as $key) {
             if (isset($array[$key])) {
                 if (is_array($array[$key]) and $contains) {
-                    $c1 = count(fun::arrayContains($array[$key], $contains, 0, $key));
+                    $c1 = count(static::arrayContains($array[$key], $contains, 0, $key));
                     #_die($key.$contains.$c1);found twice
                     #echo $c1;
                     $matching += $c1;
@@ -294,7 +294,7 @@ class fun /* extends base */
         $found = [];
         foreach ($array as $k => $v) {
             if (is_array($v)) {
-                $e = fun::searchInArrayDepths($v, $keys, $contains, $lv + 1, array_merge($bk, [$k]));#search deeper
+                $e = static::searchInArrayDepths($v, $keys, $contains, $lv + 1, array_merge($bk, [$k]));#search deeper
                 if ($e) {
                     $found = array_merge($found, $e);
                     #_die("found::".$found);
@@ -448,7 +448,7 @@ class fun /* extends base */
         }#enctype : multipoart
         #$files=['file' => '@' . realpath($file).';filename='.$name];#does not sends files
         $files = ['file' => curl_file_create($file, '.jpg', $name)];#gives : error: operation aborted by callback
-        return fun::cup(['url' => $url, 'post' => $files, 'headers' => $headers + ['content-type: multipart/form-data'], 'timeout' => $timeout]);
+        return static::cup(['url' => $url, 'post' => $files, 'headers' => $headers + ['content-type: multipart/form-data'], 'timeout' => $timeout]);
     }
 
     static function cup($url, $opt = [], $post = [], $headers = [], $timeout = 30, $unsecure = 1, $forcePort = 0, $follow = 1)
@@ -555,7 +555,7 @@ class fun /* extends base */
             }
             $new = require_once $f;
             $conf += $new;
-            fun::setStatic('conf', $conf);
+            static::setStatic('conf', $conf);
         }
 
         if (!$k) {
@@ -572,7 +572,7 @@ class fun /* extends base */
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
         }
-        $isThumbnailRoute = fun::isThumbnailRoute($url, $virtual);
+        $isThumbnailRoute = static::isThumbnailRoute($url, $virtual);
         if ($isThumbnailRoute) {
             return $isThumbnailRoute;
         }
@@ -602,8 +602,8 @@ class fun /* extends base */
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
         }
-        $mediaTypes = explode(',', fun::getConf('mediaTypes'));
-        $ext = fun::getExtension($url);
+        $mediaTypes = explode(',', static::getConf('mediaTypes'));
+        $ext = static::getExtension($url);
         $res = in_array($ext, $mediaTypes);
         return $res;
     }
@@ -616,9 +616,9 @@ class fun /* extends base */
             $url = $_SERVER['REQUEST_URI'];
         }
 #is 404 yet becuz not set on the server
-        $s = fun::getConf('pathSeparator');
-        $url = fun::firstBefore($url, ['?', '#']);
-        if (fun::isMedia($url) and strpos($url, $s) and preg_match('~' . fun::getConf('thumbnailsDir') . '(.*)~i', $url, $m)) {
+        $s = static::getConf('pathSeparator');
+        $url = static::firstBefore($url, ['?', '#']);
+        if (static::isMedia($url) and strpos($url, $s) and preg_match('~' . static::getConf('thumbnailsDir') . '(.*)~i', $url, $m)) {
 #purge querystring, then hashtag
             $filepath = $m[1];
             $target = $_ENV['dr'] . ltrim($url, '/');
@@ -629,14 +629,14 @@ class fun /* extends base */
             preg_match('~' . $s . 'h([0-9]+)~', $m[1], $h);
 
             if ($w && $w[1] && (int)$w[1]) {
-                if (!in_array((int)$w[1], fun::getConf('thumbAuthorizedWidths'))) {
+                if (!in_array((int)$w[1], static::getConf('thumbAuthorizedWidths'))) {
                     null;#return;
                 }
                 $filepath = str_replace($w[0], '', $filepath);#strip out parameter
                 $width = (int)$w[1];
             }
             if ($h && $h[1] && (int)$h[1]) {
-                if (!in_array((int)$w[1], fun::getConf('thumbAuthorizedHeights'))) {
+                if (!in_array((int)$w[1], static::getConf('thumbAuthorizedHeights'))) {
                     null;#return;
                 }
                 $filepath = str_replace($h[0], '', $filepath);#strip out
@@ -644,11 +644,11 @@ class fun /* extends base */
             }
 
             if (!$width and !$height) {
-                return fun::r302('/' . $url . '#original picture : as no width, nor height specified', $virtual);
+                return static::r302('/' . $url . '#original picture : as no width, nor height specified', $virtual);
             }
 
             $originalFile = ltrim(str_replace($s, '/', $filepath), '/');
-            $finalExt = fun::getExtension($originalFile);
+            $finalExt = static::getExtension($originalFile);
 
             $opaths = array_filter(array_unique([$originalFile, str_replace('.webp', '', $originalFile)]));#trick is to append .webp at the end of the path ..
             foreach ($opaths as $opath) {
@@ -656,9 +656,9 @@ class fun /* extends base */
                 if (is_file($opath)) {#générer la thumb ici - once and for all !!
                     #$b = thumbnail($opath, $width, $height);
                     try {
-                        $b = fun::resizeImage(['ext2' => $finalExt, 'filename' => $opath], $width, $height, $target);
+                        $b = static::resizeImage(['ext2' => $finalExt, 'filename' => $opath], $width, $height, $target);
                         if ($b) {
-                            return fun::r302($url . '#?generated=' . date('YmdHis') . '#', $virtual);
+                            return static::r302($url . '#?generated=' . date('YmdHis') . '#', $virtual);
                         }
                         $a = 1;
                     } catch (\Exception $_e) {
@@ -669,10 +669,10 @@ class fun /* extends base */
             }
             #sinon 404
             #die('/*'.is_file($opath).$b.'*/');
-            return fun::r404m($virtual);
+            return static::r404m($virtual);
         }
         return;
-        #return fun::thumbnailFileName($file, 0, 0);
+        #return static::thumbnailFileName($file, 0, 0);
     }
 
     static function firstBefore($x, $s = ['?', '#'])
@@ -706,16 +706,16 @@ class fun /* extends base */
     static function r404m($virtual = 0)
     {
         if ($virtual) {
-            return __function__ . '/' . fun::getConf('defaultImage');
+            return __function__ . '/' . static::getConf('defaultImage');
         }
         header('Content-type: image/png');
         header('HTTP/1.0 404 Not Found', 1, 404);
-        readfile(fun::getConf('defaultImage'));
-        fun::_die();
-        #fun::die("/*$x*/");
+        readfile(static::getConf('defaultImage'));
+        static::_die();
+        #static::die("/*$x*/");
     }
 
-#fun::resizeImage(['ext2'=>'webp','filename'=>])..
+#static::resizeImage(['ext2'=>'webp','filename'=>])..
     static function resizeImage($filename, $w = null, $h = null, $target = null)
     {
         #was thumbgen::main(compact('filename','target','h','w'));#list($cuwidth, $cuheight) = getimagesize($filename);
@@ -772,7 +772,7 @@ class fun /* extends base */
         }
 
         if ($target) {
-            $ext2 = fun::getExtension($target);
+            $ext2 = static::getExtension($target);
             $ext = $ext2;
             switch ($ext2) {
                 case 'webp':
@@ -891,7 +891,7 @@ class fun /* extends base */
             throw new \Exception(__function__ . __file__ . __line__ . "!no target");
         }
 
-        fun::makereps($target);#construire l'arboresence si manquante
+        static::makereps($target);#construire l'arboresence si manquante
         $success = @touch($target);
 #catched above ..
         /*try {$success = @touch($target);} catch (\Exception $e) {throw new \Exception(__function__.__file__.__line__."#no writable:$target".$e->getMessage());}*/
@@ -922,8 +922,8 @@ class fun /* extends base */
 
     static function thumbnailFileName($file, $w = 0, $h = 0)
     {
-        $td = fun::getconf('thumbnailsDir');#y/thumbs
-        $defaultImage = fun::getconf('defaultImage');#y/default.png
+        $td = static::getconf('thumbnailsDir');#y/thumbs
+        $defaultImage = static::getconf('defaultImage');#y/default.png
 
         $file = str_replace('/', '-_', trim($file, '/'));
         $file = explode('.', $file);
@@ -950,7 +950,7 @@ class fun /* extends base */
         \parse_str('image=' . $img, $m);
         $m['width'] = (isset($m['width'])) ? $m['width'] : 0;
         $m['height'] = (isset($m['height'])) ? $m['height'] : 0;
-        return fun::thumbnailFileName($m['image'], $m['width'], $m['height']);
+        return static::thumbnailFileName($m['image'], $m['width'], $m['height']);
     }
 
     /*accessed via __callStatic*/
@@ -961,7 +961,7 @@ class fun /* extends base */
 
     /*
     $privateClass=new privateClass();
-    list($reflect,$methods,$props,$values)=fun::privateAccess($privateClass);
+    list($reflect,$methods,$props,$values)=static::privateAccess($privateClass);
     foreach($props as $k=>$v){
         $k->setValue($privateClass,$k.$v2.'_');
     }
@@ -1064,7 +1064,7 @@ class fun /* extends base */
 
     static function insertValues($z)
     {
-        $values = fun::insert4row($z);
+        $values = static::insert4row($z);
         $keys = implode(',', array_keys($z));
         return "($keys) values $values";
     }
@@ -1099,13 +1099,13 @@ class fun /* extends base */
     static function alertMail($sub = '', $msg = '', $to = null, $head = '', $from = '')
     {
         if (!$to) {
-            $to = fun::getConf('defaultWebmasterEmail');
+            $to = static::getConf('defaultWebmasterEmail');
         }
         #'alert:'.$data['host'].' disk usage '.$data['v'],'msg',
         $s = "\r\n";
         if (strpos($head, 'From:') === false) {
             if (!$from) {
-                $from = fun::getConf('defaultWebmasterTitle') . ' <' . $to . '>';
+                $from = static::getConf('defaultWebmasterTitle') . ' <' . $to . '>';
             }#might have been re-injected
             $head .= "From: $from{$s}Reply-To: $from{$s}";
         }
@@ -1120,7 +1120,7 @@ class fun /* extends base */
     /* nice logs ips instead of ipv6 .. */
     static function ip2hostname($x)
     {
-        $ips = fun::getConf('ip2hostname');
+        $ips = static::getConf('ip2hostname');
         if (isset($ips[$x])) {
             return $ips[$x];
         }
@@ -1160,7 +1160,7 @@ class fun /* extends base */
                 if ($ignoreLevelsUpperThan >= $lv) {
                     continue;
                 }
-                $z2 = fun::var2bash($v, $prefix . '[' . $k . ']', $lv + 1);
+                $z2 = static::var2bash($v, $prefix . '[' . $k . ']', $lv + 1);
                 $z = array_merge($z, $z2);
                 continue;
             }
@@ -1193,7 +1193,7 @@ class fun /* extends base */
         if ($todo) {
             foreach ($todo as $f) {
                 $basename = basename($f);
-                $ext = fun::getExtension($f);
+                $ext = static::getExtension($f);
                 if ($ext == 'sql') {
                     $x = explode("\n", io::fgc($d . $f));
                     foreach ($x as $__line => $v) {
@@ -1201,7 +1201,7 @@ class fun /* extends base */
                         if (strlen($v) < 10) {
                             continue;
                         }#saut de ligne
-                        $ok[] = fun::sql($v);
+                        $ok[] = static::sql($v);
                         if (isset($_ENV['_err']['sql']) and $_ENV['_err']['sql']) {
                             $err = 1;
                             continue 2;#ignore migration, not registered and logged to errors
@@ -1219,7 +1219,7 @@ class fun /* extends base */
         #io::fpc(__DIR__.'/migrations/done.lock',);
     }
 
-// $conn=compact('h,u,p,db,names']); fun::sql2($conn,$sql,[]);
+// $conn=compact('h,u,p,db,names']); static::sql2($conn,$sql,[]);
     static function sql2($sqlConnParameters,$sql, $params=[], $errorCallback = false )
     {
         return static::sql(['sqlConnParameters' => $sqlConnParameters,'sql' => $sql, 'params' => $params,'errorCallback'=>$errorCallback]);
@@ -1227,9 +1227,9 @@ class fun /* extends base */
 
     static function sql3($sql, $params=[])
     {
-        return static::sql(['sqlConnParameters' => fun::$connection,'sql' => $sql, 'params' => $params, 'errorCallback'=>function($a,$b){ throw new \Exception($a.' / '.$b);}]);
+        return static::sql(['sqlConnParameters' => static::$connection,'sql' => $sql, 'params' => $params, 'errorCallback'=>function($a,$b){ throw new \Exception($a.' / '.$b);}]);
     }
-//  fun::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
+//  static::sql(['sql'=>'request','s'=>compact('h,u,p,db,names']);
     static function sql($sql, $conf = 'mysql', $charset = 0, $port = 3306, $ignoreErrors = 0, $try = 0, $search = 0, $params = [], $intercepts = 0, $allowError = 0, $errorCallback = 0, $connection = 0, $sqlConnParameters = [])
     {
         static $nbr = 0;
@@ -1237,7 +1237,7 @@ class fun /* extends base */
         $nbr++;
         $start = microtime(true);
         $baseConf = $sql;
-        $s = fun::getConf($conf);#<==== attention, pleins de trucs ont besoin de cleaalptech utf8 set names as default
+        $s = static::getConf($conf);#<==== attention, pleins de trucs ont besoin de cleaalptech utf8 set names as default
         if($sqlConnParameters){$s=$sqlConnParameters;extract($s);}
         //$names = $s['names'];//UTF8 ou
         if (is_array($sql)) {
@@ -1270,12 +1270,12 @@ class fun /* extends base */
                 if (!$_c) {
                     error_log('mysqlconnect:'.$_SERVER['REQUEST_URI']);
                     $_e = \mysqli_connect_error($connection);
-                    fun::breakpoint('connection error', $_e);
+                    static::breakpoint('connection error', $_e);
                     #print_r($s);
                     die('connection error');
                 }
                 if (isset($_c->error) and $_c->error) {
-                    fun::breakpoint($_c);
+                    static::breakpoint($_c);
                 }
                 $_ok = \mysqli_select_db($connection, $s['db']);
                 if (!$_ok) {
@@ -1338,16 +1338,16 @@ class fun /* extends base */
         if ($err and !$ignoreErrors) {
             if (stripos($err, 'MySQL server has gone away') !== FALSE) {//  MySQL server has gone away
                 unset($_ENV[$k]);
-                $x = fun::sql($baseConf, $conf, $charset, $port, $ignoreErrors, $try + 1);
+                $x = static::sql($baseConf, $conf, $charset, $port, $ignoreErrors, $try + 1);
                 return $x;
             }
-            fun::breakpoint('sql error', $sql, $err);
+            static::breakpoint('sql error', $sql, $err);
 
             $_ENV['_sql'][$nbr . ' : ' . $sql] = $_ENV['_err']['sql'][$sql] = $err;
             $a = 1;
             $d = debug_backtrace(-2);
             $c = [$_SERVER['REQUEST_URI'], $_COOKIE, $_POST];
-            fun::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
+            static::dbm(compact('sql', 'err', 'c', 'd'), 'sqlerror');
             if ($errorCallback) {
                 return $errorCallback($sql, $err);
             }
@@ -1361,7 +1361,7 @@ class fun /* extends base */
                 $dies = $d1['file'] . '::' . $d1['line'];
                 $_ENV['_die'] = print_r(compact('dies', 'err', 'sql', 'd'), 1);
                 echo $_ENV['_die'];
-                fun::_die('first sql error :: ' . $dies);
+                static::_die('first sql error :: ' . $dies);
             }
             return [];
         }
@@ -1413,7 +1413,7 @@ class fun /* extends base */
                 if ($search) {
                     foreach ($x as $k => $v) {
                         if (preg_match('~' . $search . '~i', $v)) {
-                            fun::breakpoint($x);
+                            static::breakpoint($x);
                         }
                     }
                 }
@@ -1453,6 +1453,27 @@ class fun /* extends base */
         return $arr;
     }
 
+    static function verb($sql){
+        $verbs=[
+            'select'=>(stripos($sql,'select ') !== FALSE ? 1+stripos($sql,'select ') : null ),
+            'insert'=>(stripos($sql,'insert ') !== FALSE ? 1+stripos($sql,'insert ') : null ),
+            'update'=>(stripos($sql,'update ') !== FALSE ? 1+stripos($sql,'update ') : null ),
+            'delete'=>(stripos($sql,'delete ') !== FALSE ? 1+stripos($sql,'delete ') : null ),
+            'create'=>(stripos($sql,'create ') !== FALSE ? 1+stripos($sql,'create ') : null ),
+            'drop'=>(stripos($sql,'drop ') !== FALSE ? 1+stripos($sql,'create ') : null ),
+            'truncate'=>(stripos($sql,'truncate ') !== FALSE ? 1+stripos($sql,'truncate ') : null ),
+        ];
+        asort($verbs);
+        $verb=array_keys(array_filter($verbs))[0];
+        if (in_array($verb,['drop','truncate'])) {
+            throw new \Exception($verb." operations are flagged as insecure ..");
+        }
+        if (in_array($verb,['delete','update']) && stripos($sql, 'where ') === FALSE) {
+            throw new \Exception("no where in update statement, that's hell of a danger -- did you forget something ?");
+        }
+        return $verb;
+    }
+
     static function sqlite($db, $sql = null, $params = null, $cb = null/*, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = []*/){
         $kon=null;
         if (is_array($db)) extract($db);// un fichier par table et basta, à moins de vouloir effectuer des jointures ...
@@ -1464,16 +1485,8 @@ class fun /* extends base */
                 $kon->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
                 $kon->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             }
-            $verbs=[
-                'select'=>(stripos($sql,'select ') !== FALSE ? 1+stripos($sql,'select ') : null ),
-                'insert'=>(stripos($sql,'insert ') !== FALSE ? 1+stripos($sql,'insert ') : null ),
-                'update'=>(stripos($sql,'update ') !== FALSE ? 1+stripos($sql,'update ') : null ),
-                'delete'=>(stripos($sql,'delete ') !== FALSE ? 1+stripos($sql,'delete ') : null ),
-                'create'=>(stripos($sql,'create ') !== FALSE ? 1+stripos($sql,'create ') : null ),
-                'truncate'=>(stripos($sql,'truncate ') !== FALSE ? 1+stripos($sql,'truncate ') : null ),
-            ];
-            asort($verbs);
-            $verb=array_keys(array_filter($verbs))[0];
+
+            $verb=static::verb($sql);
             $sql=trim($sql,"\n\r\t ;").';';
 
             if($params){
@@ -1557,6 +1570,8 @@ class fun /* extends base */
         $port = 3306;
         $names = 0;
         if (is_array($h)) extract($h);
+        $verb=static::verb($sql);
+
         if ($params and is_string($params)) $params = [$params];
 
         if (isset($_ENV['sqlLog']) and $_ENV['sqlLog'] or (isset($_ENV['sqlTime']) and $_ENV['sqlTime'])) {
@@ -1609,7 +1624,7 @@ class fun /* extends base */
                     unset($_ENV['pdo_' . $konnektion]);
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 }
-                throw $e;
+                throw new \Exception(json_encode(['db'=>debug_backtrace(-2),'msg'=>$e->getMessage()]));
             }#
 
             if (!$success) {
@@ -1681,7 +1696,7 @@ class fun /* extends base */
                 if ($search) {
                     foreach ($x as $k => $v) {
                         if (preg_match('~' . $search . '~i', $v)) {
-                            fun::breakpoint($x);
+                            static::breakpoint($x);
                         }
                     }
                 }
@@ -1706,7 +1721,7 @@ class fun /* extends base */
 
         } catch (\Throwable $_e) {
             echo "\n" . $_e->getMessage();
-            fun::breakpoint('sql error', $sql, $_e);
+            static::breakpoint('sql error', $sql, $_e);
             if ($errorCallback) {
                 return $errorCallback($sql, $_e);
             }
@@ -1744,12 +1759,12 @@ class fun /* extends base */
 
         if (strpos($head, 'From:') === false) {
             if (!$from) {
-                $from = fun::getConf('defaultSenderMail');
+                $from = static::getConf('defaultSenderMail');
             }
             $head .= "From: $from{$s}Reply-To: $from{$s}";
         }
 
-        $sp = fun::getConf('mailSavePath');
+        $sp = static::getConf('mailSavePath');
         $sent = mail($to, $sub, $body, $head);
         if ($sp) {#todo:query postfix for messageId
             $f = $_SERVER['DOCUMENT_ROOT'] . $sp . substr(preg_replace('~_+~', '_', preg_replace('~[^a-z0-9@\.\-]~is', '_', $mid . '-_-' . $to . '-_-' . time() . '-_-' . $sub)), 0, 250) . '.json';#
@@ -1915,8 +1930,8 @@ class fun /* extends base */
 
     static function shortDist($olat, $olon, $dist)
     {
-        $latDegDist = fun::distance($olat, $olat + 1, $olon, $olon);#updown::  111 km par deg
-        $lonDegDist = fun::distance($olat, $olat, $olon, $olon + 1);#rightleft:: 77 km
+        $latDegDist = static::distance($olat, $olat + 1, $olon, $olon);#updown::  111 km par deg
+        $lonDegDist = static::distance($olat, $olat, $olon, $olon + 1);#rightleft:: 77 km
         $dlon = $dist / $lonDegDist;
         $dlat = $dist / $latDegDist;
         $rect = [$olat - $dlat, $olat + $dlat, $olon - $dlon, $olon + $dlon];
@@ -2190,7 +2205,7 @@ class fun /* extends base */
     {
         $x = explode('/', $f);
         $x = end($x);
-        $memc = fun::ismemcacheon();
+        $memc = static::ismemcacheon();
         if ($memc) {
             $res = memcache_get($memc, $x);
             if ($res) {
@@ -2224,7 +2239,7 @@ class fun /* extends base */
 
     static function FPCS($f, $d, $expiration = 0 /*never for opcache*/)
     {
-        $memc = fun::ismemcacheon();
+        $memc = static::ismemcacheon();
         if ($memc) {
             $x = explode('/', $f);
             $x = end($x);
@@ -2263,7 +2278,7 @@ class fun /* extends base */
     /** either file or memcache key */
     static function FDM($f)
     {
-        $memc = fun::ismemcacheon();
+        $memc = static::ismemcacheon();
         if ($memc) {
             $x = explode('/', $f);
             $x = end($x);
@@ -2280,7 +2295,7 @@ class fun /* extends base */
     /** sets memcache or file */
     static function FPCM($f, $d, $flag = null)
     {
-        $memc = fun::ismemcacheon();
+        $memc = static::ismemcacheon();
         if ($memc) {
             $x = explode('/', $f);
             $x = end($x);
@@ -2305,7 +2320,7 @@ class fun /* extends base */
     /** returns memcache or file */
     static function fgcm($f)
     {
-        $memc = fun::ismemcacheon();
+        $memc = static::ismemcacheon();
         if ($memc) {
             $x = explode('/', $f);
             $x = end($x);
@@ -2340,25 +2355,25 @@ class fun /* extends base */
 
     static function rs($k, $v)
     {
-        fun::rc();
+        static::rc();
         $_ENV['rc']->set($k, $v);
     }
 
     static function rk($k = '*')
     {
-        fun::c();
+        static::c();
         return $_ENV['rc']->keys($k);
     }
 
     static function rg($k)
     {
-        fun::rc();
+        static::rc();
         return $_ENV['rc']->get($k);
     }
 
     static function rd($k)
     {
-        fun::rc();
+        static::rc();
         return $_ENV['rc']->del($k);
     }
 
@@ -2431,7 +2446,7 @@ class fun /* extends base */
     }
 
     /**
-     * fun::cachefile('cache/key.php',function(){return ['magic'=>'v1:'.time()];},99);
+     * static::cachefile('cache/key.php',function(){return ['magic'=>'v1:'.time()];},99);
      *
      * @param $f
      * @param $callback
@@ -2631,7 +2646,7 @@ class fun /* extends base */
             $exists=imagejpeg($tmp, $f, $quality);
         }
         if(!$exists)throw new \exception('cant write '.$f);
-        fun::r302('/' . $f . '#gen');
+        static::r302('/' . $f . '#gen');
         return;
     }
 // Strips of Html Tags for Http output ..
@@ -2697,23 +2712,23 @@ class fun /* extends base */
     static function on404(){
         if (in_array(static::$ext,['jpg','webp','png','gif'])) {
             try{
-                fun::tnResizeOn404();
+                static::tnResizeOn404();
             }catch(\throwable $e){
-                fun::r404($e->getMessage());
+                static::r404($e->getMessage());
             }
         } elseif(0 and !static::$ext){// Not good, kills current namespace
             $f=trim(static::$uq,'./').'.php';
             if(is_file($f)){
-                fun::hl('HTTP/1.1 200 OK');
+                static::hl('HTTP/1.1 200 OK');
                 require_once $f;
                 return;
             }
         }
-        //fun::r404();
+        //static::r404();
     }
 /** dev functions wisth Quick And Dirty Development */
     static function printExceptions(){
-        \set_exception_handler('\Alptech\Wip\fun::exception_handler');
+        \set_exception_handler('\Alptech\Wip\static::exception_handler');
     }
 
     static function exception_handler(\Throwable $e) {
@@ -2722,7 +2737,7 @@ class fun /* extends base */
     }
 
     static function printErrors(){
-        \set_error_handler('\Alptech\Wip\fun::errorHandler');
+        \set_error_handler('\Alptech\Wip\static::errorHandler');
     }
 
     static function errorHandler($errno, $errstr, $errfile, $errline)
