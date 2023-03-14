@@ -6,7 +6,16 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [],$conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+
+    static function conf($x=null){// fun::conf(['a'=>1]);
+        if(!$x)return;
+        elseif(is_array($x)){
+            static::$data=array_merge(static::$data,$x);
+        }elseif(isset(static::$data[$x])){
+            return static::$data[$x];
+        }
+    }
 
     static function breakpoint($x=null)
     {
@@ -14,8 +23,9 @@ class fun /* extends base */
         $breakpoint = 'here -- usefull when using xDebug';
     }
 
-    static function main()
+    static function main($setData = null)
     {
+        if ($setData) static::conf($setData);
         return __FILE__ . __LINE__;#
     }
 
@@ -1616,6 +1626,7 @@ class fun /* extends base */
                     $success = $cmd = $cnx->query($sql);
                 }
             } catch (\Throwable $e) {
+                $a=$sql;$b=$e->getMessage();
                 if (strpos($e->getMessage(), 'Deadlock found when trying') and $retry < 3) {//SQLSTATE[40001]: Serialization failure: 1213 Deadlock found when trying to get lock; try restarting transaction
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 } elseif (strpos($e->getMessage(), 'Lock wait timeout exceeded;') and $retry < 3) {//SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transactionL.
@@ -2662,27 +2673,29 @@ class fun /* extends base */
     {
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
-            static::$local = 1;
-            static::$env = static::$h = static::$ext = 'cli';
-            static::$ip = '127.0.0.1';
+            $values=[];
+            $values['local']=static::$local = 1;
+            $values['h']=$values['cli']=$values['env']=static::$env = static::$h = static::$ext = 'cli';
+            $values['ip']=static::$ip = '127.0.0.1';
             $script = array_shift($a);
             if (strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
-            static::$uq = static::$u = $script;//  $_SERVER['PWD']
-            static::$dr = \dirname(static::$u);
-            static::$q = implode(',',$a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
+            $values['uq']=$values['u']=static::$uq = static::$u = $script;//  $_SERVER['PWD']
+            $values['dr']=static::$dr = \dirname(static::$u);
+            $values['q']=static::$q = implode(',',$a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
             foreach($a as $v) {
                 if (($decoded = static::jsonValid($v)) && $decoded) {
                     foreach ($decoded as $k => $v) {
-                        static::$args[$k] = $_GET[$k] = $v;
+                        $values['args'][$k]=static::$args[$k] = $_GET[$k] = $v;
                     }
                 }elseif (preg_match('/^--([^=]+)=(.*)/', $v, $m)) {
-                    static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
+                    $values['args'][$m[1]]=static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 } elseif (preg_match('/^([^=]+)=([^=]+)/', $v, $m)) {
-                    static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
+                    $values['args'][$m[1]]=static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 }
             }
+            static::conf($values);
 
         }else{// http forwarded request
             static::$u = $u = $_SERVER['REQUEST_URI'];
