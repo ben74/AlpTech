@@ -1427,22 +1427,9 @@ class fun /* extends base */
                         }
                     }
                 }
-
-                if (isset($x['ARRAYK']) and isset($x['unikk'])) {
-                    $res[$x['ARRAYK']][] = $x['unikk'];
-                } elseif (isset($x['ARRAYK']) and isset($x['pkid'])) {
-                    $res[$x['ARRAYK']][$x['pkid']] = array_diff($x, ['ARRAYK' => $x['ARRAYK'], 'pkid' => $x['pkid']]);#multiple res per keys
-                } elseif (isset($x['ARRAYK'])) {
-                    $res[$x['ARRAYK']][] = array_diff($x, ['ARRAYK' => $x['ARRAYK']]);#multiple res per keys
-                } elseif (isset($x['unikk'])) return $x['unikk'];#single expectation return result
-                elseif (isset($x['pkid']) and isset($x['roww'])) $res[$x['pkid']] = $x['roww'];#single expectation return result
-                elseif (isset($x['pkid'])) $res[$x['pkid']] = $x;#named pkid row
-                elseif (isset($x['roww'])) $res[] = $x['roww'];#single expectation per row
-                else $res[] = $x;
+                $res[] = $x;
             }
-            if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
-                return null;
-            }
+            $res=static::sqlClassifier($res);
         }
         if (isset($_ENV['stop']) and $_ENV['stop']) {
             $_ENV['stop'] = 0;
@@ -1549,12 +1536,15 @@ class fun /* extends base */
             } elseif ($pkid and $roww) {
                 $res[$x['pkid']] = $x['roww'];#single expectation return result
             } elseif ($pkid) {
-                $res[$x['pkid']] = $x;#named pkid row
+                $res[$x['pkid']] = array_diff($x,['pkid'=>1]);#named pkid row
             } elseif ($roww) {
                 $res[] = $x['roww'];#single expectation per row
             } else {
                 $res[] = $x;
             }
+        }
+        if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
+            return null;
         }
         return $res;
     }
