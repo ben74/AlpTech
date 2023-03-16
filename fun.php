@@ -1536,7 +1536,7 @@ class fun /* extends base */
             } elseif ($pkid and $roww) {
                 $res[$x['pkid']] = $x['roww'];#single expectation return result
             } elseif ($pkid) {
-                $res[$x['pkid']] = array_diff($x,['pkid'=>1]);#named pkid row
+                $res[$x['pkid']] = array_diff($x,['pkid'=>$x['pkid']]);#named pkid row
             } elseif ($roww) {
                 $res[] = $x['roww'];#single expectation per row
             } else {
