@@ -1471,6 +1471,7 @@ class fun /* extends base */
             'delete'=>(stripos($sql,'delete ') !== FALSE ? 1+stripos($sql,'delete ') : null ),
             'create'=>(stripos($sql,'create ') !== FALSE ? 1+stripos($sql,'create ') : null ),
             'drop'=>(stripos($sql,'drop ') !== FALSE ? 1+stripos($sql,'create ') : null ),
+            'alter'=>(stripos($sql,'alter ') !== FALSE ? 1+stripos($sql,'alter ') : null ),
             'truncate'=>(stripos($sql,'truncate ') !== FALSE ? 1+stripos($sql,'truncate ') : null ),
         ];
         asort($verbs);
@@ -1558,6 +1559,11 @@ class fun /* extends base */
         return $res;
     }
 
+    static function shortTrace($bt){
+        foreach($bt as &$t){$t=basename($t['file']).'#'.$t['line'];}unset($t);krsort($bt);
+        return array_values($bt);
+    }
+
     static function pdo($h, $sql = null, $params = null, $db = null, $u = null, $p = null, $search = null, $bindParams = 1, $intercepts = 0, $errorCallback = 0, $retry = 0, $preConnect = [], $options = [], $cb = null)
     {
         static $nbr = 0;
@@ -1635,7 +1641,7 @@ class fun /* extends base */
                     unset($_ENV['pdo_' . $konnektion]);
                     return static::pdo($h, $sql, $params, $db, $u, $p, $search, $bindParams, $intercepts, $errorCallback, $retry + 1);
                 }
-                throw new \Exception(json_encode(['db'=>debug_backtrace(-2),'msg'=>$e->getMessage()]));
+                throw new \Exception(json_encode(['db'=>static::shortTrace(debug_backtrace(-2)),'msg'=>$e->getMessage()]));
             }#
 
             if (!$success) {
