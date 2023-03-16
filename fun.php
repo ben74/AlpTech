@@ -1429,7 +1429,7 @@ class fun /* extends base */
                 }
                 $res[] = $x;
             }
-            $res=static::sqlClassifier($res);
+            $res = static::sqlClassifier($sql, $res);
         }
         if (isset($_ENV['stop']) and $_ENV['stop']) {
             $_ENV['stop'] = 0;
