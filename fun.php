@@ -431,9 +431,10 @@ class fun /* extends base */
      * @param $onFailure
      * @param $parallelRequests
      * @param $eternalLoop : in case of consuming some queue or sql results, there's no given end of this command, just avoid memory leaks or kill the worker on feeder when no more pendingResults
+     * @param $onRequeues : on increasing 503 responses toward an host might consider to delay some call or introduce usleep() in between
      * @return array
      */
-    static function cme2($feeder, $onResponse, $onFailure, $parallelRequests = 20, $eternalLoop = true)
+    static function cme2($feeder, $onResponse, $onFailure, $parallelRequests = 20, $eternalLoop = true, $onRequeues = false)
     {
         $usleep = 100000;// microseconds
         $codeForRequeues = [502, 503];
@@ -470,6 +471,7 @@ class fun /* extends base */
                 $ret['results'][$url2 . '#' . $reqNumber] = $rc.','.$i['body'];
                 //echo':';
                 if (in_array($rc, $codeForRequeues)) {// Requeues 502,503
+                    if($onRequeues)$onRequeues($i);// sleeping and temporising requests ?
                     $ret['rq']++;//echo'£';
                     $co = $options[$reqNumber];
                     $data1 = $data[$reqNumber];
