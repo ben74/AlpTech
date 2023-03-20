@@ -435,6 +435,7 @@ class fun /* extends base */
      */
     static function cme2($feeder, $onResponse, $onFailure, $parallelRequests = 20, $eternalLoop = true)
     {
+        $usleep = 100000;// microseconds
         $codeForRequeues = [502, 503];
 
         $delayed = $queue = $data = $pending = [];
@@ -450,25 +451,26 @@ class fun /* extends base */
                 $reqNumber = intval($ha);
                 $opts = $options[$reqNumber];
                 $i = \curl_getinfo($ha);
+                //echo"\n".$reqNumber;
                 if ('HEAD request returns info' && isset($opts[CURLOPT_NOBODY]) && $opts[CURLOPT_NOBODY]) {
-                    $i['body']=null;
+                    $i['body'] = null;
                 } elseif (isset($opts['FILE'])) {
                     fclose($files[$reqNumber]);
-                } elseif ('isSimpleGetContents') {
-                    $i = \curl_getinfo($ha);
-                    $i['body'] = substr(curl_multi_getcontent($ha),$i['header_size']);// Header + contents`
+                } elseif ('isSimpleGetContents on get request') {
+                    $c=\curl_multi_getcontent($ha);
+                    $i['body'] = \substr($c,$i['header_size']);// Header + contents`
+                    //echo $c.json_encode($i);
                 }
                 \curl_multi_remove_handle($mh, $pending[$reqNumber]);
                 unset($pending[$reqNumber]);
-
 
                 $rc = (int)$i['http_code'];
                 $cl = (int)$i['download_content_length'];
                 $url2 = $urls[$reqNumber];// $i['url']
                 $ret['results'][$url2 . '#' . $reqNumber] = $rc.','.$i['body'];
-
+                //echo':';
                 if (in_array($rc, $codeForRequeues)) {// Requeues 502,503
-                    $ret['rq']++;
+                    $ret['rq']++;//echo'£';
                     $co = $options[$reqNumber];
                     $data1 = $data[$reqNumber];
                     unset($options[$reqNumber], $data[$reqNumber], $urls[$reqNumber]);
@@ -488,15 +490,18 @@ class fun /* extends base */
 
                 if ($rc < 200 || $rc > 503 || strlen($rc) > 4) {
                     $onFailure($i, $data[$reqNumber]);
-                    $ret[$opts[CURLOPT_URL]] = json_encode($i);
+                    $ret[$opts[CURLOPT_URL]] = json_encode($i);echo';';
                     continue;
                 }
 
                 $newJob = $onResponse($i, $data[$reqNumber], count($pending), $ret);
                 if ($newJob) {
                     $delayed = array_merge($delayed, $newJob);
+                    $finished = false;
+                    //echo"--".$i['body'].'->'.json_encode($newJob);
                 }
                 unset($urls[$reqNumber], $data[$reqNumber]);
+                //echo'=>'.count($pending).','.count($delayed);
             }
 
             $feeded = 0;
@@ -504,13 +509,13 @@ class fun /* extends base */
             // Can continue feeding the Beast with Requests
             while (!isset(static::$data['stopCurlMultiExec']) && !$finished && (count($pending) < $parallelRequests) && ( $delayed || !$emptyFeeder) ) {
                 if ($delayed) {
-                    $queue[] = array_shift($delayed);
+                    $queue[] = array_shift($delayed);//echo'a';
                 }
 
                 while ('2 : No More Things to feed here' && !$queue && !$emptyFeeder) {
-                    $ok = false;
                     $err = 0;
-                    while (!$ok && $err < 10) {
+                    $ok = false;
+                    while (!$ok && $err < 5) {// Feeder tries n times if cas of exception
                         try {
                             $queue = $feeder(count($pending), $iteration);// Might return : empty on end condition reached
                             if (!$queue) $emptyFeeder = true;
@@ -526,12 +531,13 @@ class fun /* extends base */
 
                 if (!$queue){
                     if(!$eternalLoop) {
-                        $finished = true;// just finish pendings requests, wont loop back here again
+                        $finished = true;
                         if (!$pending) {
-                            $ret['L:' . __line__]++;
+                            $ret['break:']=__line__;
                             continue 2;// break 2 :: is truly finished
                         }
                     }
+                    $ret[ __line__]++;
                     continue;// still pending things, continue loop 1
                 }
 
@@ -552,6 +558,8 @@ class fun /* extends base */
                 usleep($usleep);
             }
         }
+
+        $ret['delayed'] = count($delayed);
         $ret['time'] = round(microtime(true) - $ret['started'], 4);
         unset($ret['started']);
         return $ret;
