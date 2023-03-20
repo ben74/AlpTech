@@ -425,6 +425,136 @@ class fun /* extends base */
         return $res;
     }
 
+    /**
+     * @param $feeder
+     * @param $onResponse
+     * @param $onFailure
+     * @param $parallelRequests
+     * @param $eternalLoop : in case of consuming some queue or sql results, there's no given end of this command, just avoid memory leaks or kill the worker on feeder when no more pendingResults
+     * @return array
+     */
+    static function cme2($feeder, $onResponse, $onFailure, $parallelRequests = 20, $eternalLoop = true)
+    {
+        $codeForRequeues = [502, 503];
+
+        $delayed = $queue = $data = $pending = [];
+        $ret = ['started' => microtime(true), 'tot' => 0, 'slept' => 0, 'rq' => 0, 'results' => []];
+        $finished = false;
+        $mh = \curl_multi_init();
+        while ($pending || !$finished) {
+            \curl_multi_exec($mh, $active);
+            $ir = \curl_multi_info_read($mh);
+            if ('onResult => ' && $ir) {//$ir['msg']=1 && ir['result']=0;
+                $tries++;
+                $ha = $ir['handle'];
+                $reqNumber = intval($ha);
+                $opts = $options[$reqNumber];
+                $i = \curl_getinfo($ha);
+                if ('HEAD request returns info' && isset($opts[CURLOPT_NOBODY]) && $opts[CURLOPT_NOBODY]) {
+                    $i['body']=null;
+                } elseif (isset($opts['FILE'])) {
+                    fclose($files[$reqNumber]);
+                } elseif ('isSimpleGetContents') {
+                    $i = \curl_getinfo($ha);
+                    $i['body'] = substr(curl_multi_getcontent($ha),$i['header_size']);// Header + contents`
+                }
+                \curl_multi_remove_handle($mh, $pending[$reqNumber]);
+                unset($pending[$reqNumber]);
+
+
+                $rc = (int)$i['http_code'];
+                $cl = (int)$i['download_content_length'];
+                $url2 = $urls[$reqNumber];// $i['url']
+                $ret['results'][$url2 . '#' . $reqNumber] = $rc.','.$i['body'];
+
+                if (in_array($rc, $codeForRequeues)) {// Requeues 502,503
+                    $ret['rq']++;
+                    $co = $options[$reqNumber];
+                    $data1 = $data[$reqNumber];
+                    unset($options[$reqNumber], $data[$reqNumber], $urls[$reqNumber]);
+
+                    $c = \curl_init();
+                    $reqNumber = intval($c);
+                    $data[$reqNumber] = $data1;
+                    $urls[$reqNumber] = $url2;
+                    $options[$reqNumber] = $co;
+                    $pending[$reqNumber] = $c;
+                    \curl_setopt_array($c, $co);
+                    \curl_multi_add_handle($mh, $c);
+                    continue;
+                }
+
+                unset($options[$reqNumber]);
+
+                if ($rc < 200 || $rc > 503 || strlen($rc) > 4) {
+                    $onFailure($i, $data[$reqNumber]);
+                    $ret[$opts[CURLOPT_URL]] = json_encode($i);
+                    continue;
+                }
+
+                $newJob = $onResponse($i, $data[$reqNumber], count($pending), $ret);
+                if ($newJob) {
+                    $delayed = array_merge($delayed, $newJob);
+                }
+                unset($urls[$reqNumber], $data[$reqNumber]);
+            }
+
+            $feeded = 0;
+            $emptyFeeder = false;
+            while ('1 : While Free Slots -> Feed Empty Slots with Requests' && !isset(static::$data['stopCurlMultiExec']) && (count($pending) < $parallelRequests) && ( $delayed || (!$emptyFeeder && !$finished)) ) {
+                if ($delayed) {
+                    $queue[] = array_shift($delayed);
+                }
+
+                while ('2 : No More Things to feed here' && !$queue && !$emptyFeeder) {
+                    $ok = false;
+                    $err = 0;
+                    while (!$ok && $err < 10) {
+                        try {
+                            $queue = $feeder(count($pending), $iteration);// Might return : empty on end condition reached
+                            if (!$queue) $emptyFeeder = true;
+                            $ok = true;
+                        } catch (\Throwable $e) {
+                            $err++;
+                            echo"\n".substr($e->getMessage(), 0, 120) . ',';
+                        }
+                    }
+                    $iteration++;
+                    $ret['tot'] += count($queue);
+                }
+
+                if (!$queue){
+                    if(!$eternalLoop) {
+                        $finished = true;// just finish pendings requests, wont loop back here again
+                        if (!$pending) {
+                            $ret['L:' . __line__]++;
+                            continue 2;// break 2 :: is truly finished
+                        }
+                    }
+                    continue;// still pending things, continue loop 1
+                }
+
+                $t = array_shift($queue);
+                $feeded++;
+                $c = \curl_init();
+                $reqNumber = intval($c);
+                $pending[$reqNumber] = $c;
+                $data[$reqNumber] = $t['data'] ?? [];
+                $options[$reqNumber] = $t['options'];
+                $urls[$reqNumber] = $t['options'][CURLOPT_URL];
+                \curl_setopt_array($c, $t['options']);
+                \curl_multi_add_handle($mh, $c);
+            }
+
+            if (!$ir and !$feeded and count($pending) and 'no results :: awaiting, even one microstep when finished') {
+                $ret['slept']++;//echo'.'.count($pending);
+                usleep($usleep);
+            }
+        }
+
+        return $ret;
+    }
+
     static function addCMEHandle($mh, $opts, $defaults, &$files, &$curlReq, &$curlActiveConnexions)
     {
         $c = \curl_init();
@@ -1543,7 +1673,7 @@ class fun /* extends base */
                 $res[] = $x;
             }
         }
-        if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {//Mefiat Extrême ICI !!!
+        if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {// id unikk is null
             return null;
         }
         return $res;
