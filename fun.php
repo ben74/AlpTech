@@ -442,8 +442,8 @@ class fun /* extends base */
         $finished = false;
         $mh = \curl_multi_init();
         while ($pending || !$finished) {
-            \curl_multi_exec($mh, $active);
-            $ir = \curl_multi_info_read($mh);
+            \curl_multi_exec($mh, $active);//active:0 before feedin
+            $ir = \curl_multi_info_read($mh);//flase
             if ('onResult => ' && $ir) {//$ir['msg']=1 && ir['result']=0;
                 $tries++;
                 $ha = $ir['handle'];
@@ -501,7 +501,8 @@ class fun /* extends base */
 
             $feeded = 0;
             $emptyFeeder = false;
-            while ('1 : While Free Slots -> Feed Empty Slots with Requests' && !isset(static::$data['stopCurlMultiExec']) && (count($pending) < $parallelRequests) && ( $delayed || (!$emptyFeeder && !$finished)) ) {
+            // Can continue feeding the Beast with Requests
+            while (!isset(static::$data['stopCurlMultiExec']) && !$finished && (count($pending) < $parallelRequests) && ( $delayed || !$emptyFeeder) ) {
                 if ($delayed) {
                     $queue[] = array_shift($delayed);
                 }
@@ -551,7 +552,8 @@ class fun /* extends base */
                 usleep($usleep);
             }
         }
-
+        $ret['time'] = round(microtime(true) - $ret['started'], 4);
+        unset($ret['started']);
         return $ret;
     }
 
