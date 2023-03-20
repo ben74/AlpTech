@@ -352,10 +352,10 @@ class fun /* extends base */
                     if ($ir) {
                         //ir['msg']=1, ir['result']=3
                         $ha = $ir['handle'];
-                        $inc = intval($ha);
+                        $inc = (int) $ha;
                         $opts = $curlReq[$inc];
                         $i = \curl_getinfo($ha);
-                        //$k = intval($i['http_code']);$l = intval($i['download_content_length']);
+                        //$k = (int)($i['http_code']);$l = (int)($i['download_content_length']);
                         $newJob = false;
                         $___u = $opts[CURLOPT_URL];
 
@@ -436,7 +436,7 @@ class fun /* extends base */
      */
     static function cme2($feeder, $onResponse, $onFailure, $parallelRequests = 20, $eternalLoop = true, $onRequeues = false)
     {
-        $usleep = 100000;// microseconds
+        $usleep = 100000;// 100 milliseconds in order to avoid cpu burn
         $codeForRequeues = [502, 503];
 
         $delayed = $queue = $data = $pending = [];
@@ -444,12 +444,12 @@ class fun /* extends base */
         $finished = false;
         $mh = \curl_multi_init();
         while ($pending || !$finished) {
-            \curl_multi_exec($mh, $active);//active:0 before feedin
-            $ir = \curl_multi_info_read($mh);//flase
-            if ('onResult => ' && $ir) {//$ir['msg']=1 && ir['result']=0;
+            \curl_multi_exec($mh, $active);
+            $ir = \curl_multi_info_read($mh);
+            if ($ir && 'onResult =>') {//$ir['msg']=1 && ir['result']=0;
                 $tries++;
                 $ha = $ir['handle'];
-                $reqNumber = intval($ha);
+                $reqNumber = (int) $ha;
                 $opts = $options[$reqNumber];
                 $i = \curl_getinfo($ha);
                 //echo"\n".$reqNumber;
@@ -460,7 +460,6 @@ class fun /* extends base */
                 } elseif ('isSimpleGetContents on get request') {
                     $c=\curl_multi_getcontent($ha);
                     $i['body'] = \substr($c,$i['header_size']);// Header + contents`
-                    //echo $c.json_encode($i);
                 }
                 \curl_multi_remove_handle($mh, $pending[$reqNumber]);
                 unset($pending[$reqNumber]);
@@ -478,7 +477,7 @@ class fun /* extends base */
                     unset($options[$reqNumber], $data[$reqNumber], $urls[$reqNumber]);
 
                     $c = \curl_init();
-                    $reqNumber = intval($c);
+                    $reqNumber = (int) $c;
                     $data[$reqNumber] = $data1;
                     $urls[$reqNumber] = $url2;
                     $options[$reqNumber] = $co;
@@ -546,7 +545,7 @@ class fun /* extends base */
                 $t = array_shift($queue);
                 $feeded++;
                 $c = \curl_init();
-                $reqNumber = intval($c);
+                $reqNumber = (int) $c;
                 $pending[$reqNumber] = $c;
                 $data[$reqNumber] = $t['data'] ?? [];
                 $options[$reqNumber] = $t['options'];
@@ -570,7 +569,7 @@ class fun /* extends base */
     static function addCMEHandle($mh, $opts, $defaults, &$files, &$curlReq, &$curlActiveConnexions)
     {
         $c = \curl_init();
-        $inc = intval($c);// sont recyclées une fois libérées
+        $inc = (int) $c;// sont recyclées une fois libérées
         $curlActiveConnexions[$inc] = $c;
 
         $opts = $opts + $defaults;
@@ -2730,33 +2729,33 @@ class fun /* extends base */
                 $h = $max;
             }
             if ($r2 > $r) {//wider -> déforme ( capY trop faible )
-                $h = intval($w / $r2);
+                $h = (int)($w / $r2);
                 if ($fixedH) {
                     $h = $fixedH;
-                    $w = intval($h * $r2);
+                    $w = (int)($h * $r2);
                 }
-                $capY = intval($ow / $r2);
+                $capY = (int)($ow / $r2);
                 $srcY = $oh / 2 - $capY / 2;// ow:3200,oh:2400,capx:3200,capY:1600, srcY:400
             } else {// vertical plus haut -> limiter la propagation, prend tout la hauteur de l'image
-                $w = intval($h * $r2);
+                $w = (int)($h * $r2);
                 if ($w > $max) {
                     $w = $max;
-                    $h = intval($w / $r2);
+                    $h = (int)($w / $r2);
                 }
                 if ($fixedW) {
                     $w = $fixedW;
-                    $h = intval($w / $r2);
+                    $h = (int)($w / $r2);
                 }
-                $capX = intval($oh * $r2);
+                $capX = (int)($oh * $r2);
                 $srcX = $ow / 2 - $capX / 2;
             }
         } elseif (strpos($u, '_r.webp') or strpos($u, '_r.jpg')) {
-            if ($fixedW and !$fixedH) $h = intval($fixedW / $r);
-            elseif ($fixedH and !$fixedW) $w = intval($fixedH * $r);
+            if ($fixedW and !$fixedH) $h = (int)($fixedW / $r);
+            elseif ($fixedH and !$fixedW) $w = (int)($fixedH * $r);
             if (!$w and !$h) throw new \exception('#' . __line__);
             $r = $ow / $oh;
-            if (!$h) $h = intval($w / $r);
-            if (!$w) $w = intval($h * $r);
+            if (!$h) $h = (int)($w / $r);
+            if (!$w) $w = (int)($h * $r);
         } else {// adaptative h depending on w or vice versa
             if (!$fixedH) $h = (int)($w / $r);// rm tn/IMG_20220920_193718.jpg__w800.webp              http://hp.127.0.0.1.nip.io/tn/IMG_20220920_193718.jpg__w800.webp#gen
             if (!$fixedW) $w = (int)($h * $r);
