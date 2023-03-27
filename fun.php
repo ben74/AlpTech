@@ -1591,24 +1591,25 @@ class fun /* extends base */
         return $arr;
     }
 
-    static function verb($sql){
-        $verbs=[
-            'select'=>(stripos($sql,'select ') !== FALSE ? 1+stripos($sql,'select ') : null ),
-            'insert'=>(stripos($sql,'insert ') !== FALSE ? 1+stripos($sql,'insert ') : null ),
-            'update'=>(stripos($sql,'update ') !== FALSE ? 1+stripos($sql,'update ') : null ),
-            'delete'=>(stripos($sql,'delete ') !== FALSE ? 1+stripos($sql,'delete ') : null ),
-            'create'=>(stripos($sql,'create ') !== FALSE ? 1+stripos($sql,'create ') : null ),
-            'drop'=>(stripos($sql,'drop ') !== FALSE ? 1+stripos($sql,'create ') : null ),
-            'show'=>(stripos($sql,'show ') !== FALSE ? 1+stripos($sql,'show ') : null ),
-            'alter'=>(stripos($sql,'alter ') !== FALSE ? 1+stripos($sql,'alter ') : null ),
-            'truncate'=>(stripos($sql,'truncate ') !== FALSE ? 1+stripos($sql,'truncate ') : null ),
+    static function verb($sql)
+    {
+        $verbs = [
+            'select' => (stripos($sql, 'select ') !== FALSE ? 1 + stripos($sql, 'select ') : null),
+            'insert' => (stripos($sql, 'insert ') !== FALSE ? 1 + stripos($sql, 'insert ') : null),
+            'update' => (stripos($sql, 'update ') !== FALSE ? 1 + stripos($sql, 'update ') : null),
+            'delete' => (stripos($sql, 'delete ') !== FALSE ? 1 + stripos($sql, 'delete ') : null),
+            'create' => (stripos($sql, 'create ') !== FALSE ? 1 + stripos($sql, 'create ') : null),
+            'drop' => (stripos($sql, 'drop ') !== FALSE ? 1 + stripos($sql, 'create ') : null),
+            'show' => (stripos($sql, 'show ') !== FALSE ? 1 + stripos($sql, 'show ') : null),
+            'alter' => (stripos($sql, 'alter ') !== FALSE ? 1 + stripos($sql, 'alter ') : null),
+            'truncate' => (stripos($sql, 'truncate ') !== FALSE ? 1 + stripos($sql, 'truncate ') : null),
         ];
         asort($verbs);
-        $verb=array_keys(array_filter($verbs))[0];
-        if (in_array($verb,['drop','truncate'])) {
-            throw new \Exception($verb." operations are flagged as insecure ..");
+        $verb = array_keys(array_filter($verbs))[0];
+        if (in_array($verb, ['drop', 'truncate'])) {
+            throw new \Exception($verb . " operations are flagged as insecure ..");
         }
-        if (in_array($verb,['delete','update']) && stripos($sql, 'where ') === FALSE) {
+        if (in_array($verb, ['delete', 'update']) && stripos($sql, 'where ') === FALSE) {
             throw new \Exception("no where in update statement, that's hell of a danger -- did you forget something ?");
         }
         return $verb;
