@@ -1599,6 +1599,7 @@ class fun /* extends base */
             'delete'=>(stripos($sql,'delete ') !== FALSE ? 1+stripos($sql,'delete ') : null ),
             'create'=>(stripos($sql,'create ') !== FALSE ? 1+stripos($sql,'create ') : null ),
             'drop'=>(stripos($sql,'drop ') !== FALSE ? 1+stripos($sql,'create ') : null ),
+            'show'=>(stripos($sql,'show ') !== FALSE ? 1+stripos($sql,'show ') : null ),
             'alter'=>(stripos($sql,'alter ') !== FALSE ? 1+stripos($sql,'alter ') : null ),
             'truncate'=>(stripos($sql,'truncate ') !== FALSE ? 1+stripos($sql,'truncate ') : null ),
         ];
@@ -1717,7 +1718,7 @@ class fun /* extends base */
         $port = 3306;
         $names = 0;
         if (is_array($h)) extract($h);
-        $verb=static::verb($sql);
+        $verb = static::verb($sql);
 
         if ($params and is_string($params)) $params = [$params];
 
@@ -1728,7 +1729,7 @@ class fun /* extends base */
         $konnektion = $h . $db . $port . $names;
         try {
             if (!isset($_ENV['pdo_' . $konnektion])) {
-                $_ENV['pdo_' . $konnektion] = new \PDO("mysql:host=$h;dbname=" . $db, $u, $p, $options);
+                $_ENV['pdo_' . $konnektion] = new \PDO('mysql:host=' . $h . ';port=' . $port . ';dbname=' . $db, $u, $p, $options);
                 //$_ENV['pdo_' . $konnektion]->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
                 $cnx = $_ENV['pdo_' . $konnektion];
                 if ($names) {
@@ -2810,17 +2811,17 @@ class fun /* extends base */
     {
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
-            $values=[];
-            $values['local']=static::$local = 1;
-            $values['h']=$values['cli']=$values['env']=static::$env = static::$h = static::$ext = 'cli';
-            $values['ip']=static::$ip = '127.0.0.1';
+            $values = [];
+            $values['local'] = static::$local = 1;
+            $values['ip'] = static::$ip = '127.0.0.1';
+            $values['h'] = $values['cli'] = $values['env'] = static::$env = static::$h = static::$ext = 'cli';
             $script = array_shift($a);
             if (strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
-            $values['uq']=$values['u']=static::$uq = static::$u = $script;//  $_SERVER['PWD']
-            $values['dr']=static::$dr = \dirname(static::$u);
-            $values['q']=static::$q = implode(',',$a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
+            $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
+            $values['dr'] = static::$dr = \dirname(static::$u);
+            $values['q'] = static::$q = implode(',', $a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
             foreach($a as $v) {
                 if (($decoded = static::jsonValid($v)) && $decoded) {
                     foreach ($decoded as $k => $v) {
