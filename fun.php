@@ -439,7 +439,7 @@ class fun /* extends base */
         $usleep = 100000;// 100 milliseconds in order to avoid cpu burn
         $codeForRequeues = [502, 503];
 
-        $delayed = $queue = $data = $pending = [];
+        $delayed = $queue = $data = $pending = $options = $files = $urls = [];
         $ret = ['started' => microtime(true), 'tot' => 0, 'slept' => 0, 'rq' => 0, 'results' => []];
         $finished = false;
         $mh = \curl_multi_init();
@@ -465,9 +465,9 @@ class fun /* extends base */
                 unset($pending[$reqNumber]);
 
                 $rc = (int)$i['http_code'];
-                $cl = (int)$i['download_content_length'];
-                $url2 = $urls[$reqNumber];// $i['url']
-                $ret['results'][$url2 . '#' . $reqNumber] = $rc.','.$i['body'];
+                //$cl = (int)$i['download_content_length'];
+                $i['url2']=$url2 = $urls[$reqNumber];// $i['url']
+                $ret['results'][$url2 . '#' . $reqNumber] = $rc . ',' . $i['body'];
                 //echo':';
                 if (in_array($rc, $codeForRequeues)) {// Requeues 502,503
                     if($onRequeues)$onRequeues($i);// sleeping and temporising requests ?
@@ -1747,6 +1747,16 @@ class fun /* extends base */
                 $cnx = $_ENV['pdo_' . $konnektion];
             }
 
+            if (strpos($sql, 'beginTransaction') !== false) {
+                $cnx->beginTransaction();
+                return $cnx;
+            } elseif (strpos($sql, 'commitTransaction') !== false) {
+                $cnx->commit();
+                return $cnx;
+            } elseif (strpos($sql, 'returnConnection') !== false) {
+                return $cnx;
+            }
+
             try {
                 if ($params) {
                     $cmd = $cnx->prepare($sql);
@@ -2926,6 +2936,46 @@ class fun /* extends base */
         if ($t) return;
         $t = 1;
         header('Content-Type: text/html; charset=utf-8', 1, 200);
+    }
+
+    // postNoReturn($url, ['a'=>1],'application/x-www-form-urlencoded');
+    static function postNoReturn($url, $bodyOrParams, $type = 'application/json', $to = 30, $wait = true)
+    {
+        $parts = parse_url($url);
+        if ($bodyOrParams && is_array($bodyOrParams)) {
+            $post_params = [];
+            foreach ($bodyOrParams as $key => &$val) {
+                if (is_array($val)) $val = implode(',', $val);
+                $post_params[] = $key . '=' . urlencode($val);
+            }
+            $bodyOrParams = implode('&', $post_params);
+        }
+        if(!$bodyOrParams)$bodyOrParams='';// no post, nor body
+        if($parts['scheme']=='https')$parts['port']=443;
+        $fp = fsockopen($parts['host'], isset($parts['port']) ? $parts['port'] : 80, $errno, $errstr, $to);
+        if ($errno || $errstr) {
+            throw new \Exception($url . ':' . $errno . ':' . $errstr);
+        }
+        if (!$fp) {
+            throw new \Exception('no connection to ' . $url);
+        }
+
+        $data=[
+            'POST ' . $parts['path'] . (isset($parts['query']) ? '?' . $parts['query'] : '') . (isset($parts['fragment']) ? '#' . $parts['fragment'] : '') . ' HTTP/1.1',
+            'Host: ' . $parts['host'],
+            'Content-Type: ' . $type,
+            'Content-Length: ' . \strlen($bodyOrParams),
+            'Connection: Close',
+            '',// \r\n\r\n is the boundary
+            $bodyOrParams,
+        ];
+        fwrite($fp, implode("\r\n", $data));
+        $response = '';
+        while ($wait && !feof($fp)) { //     otherwise, wont get body
+            $response .= fgets($fp, 1024);
+        }
+        fclose($fp);
+        return $response;
     }
 }
 
