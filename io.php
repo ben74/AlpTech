@@ -16,6 +16,32 @@ class io
         return $return;
     }
 
+    static function FPP($f,$data){
+        return file_put_contents($f,'<?php return '.io::var_export_min($data, true).';');
+    }
+
+    static function var_export_min($var, $return = true) {
+        if (is_array($var)) {
+            $toImplode = [];
+            $ak=array_keys($var);$linear=false;if($ak[0]===0 && end($ak)==count($ak)-1){
+                $linear=true;
+            }
+            foreach ($var as $key => $value) {
+                if($linear){
+                    $toImplode[] = io::var_export_min($value, true);
+                } else{
+                    $toImplode[] = var_export($key, true) . '=>' . io::var_export_min($value, true);
+                }
+                //$toImplode[] = var_export($key, true).'=>'.io::var_export_min($value, true);
+            }
+            $code = '['.implode(',', $toImplode).']';
+            if ($return) return $code;
+            else echo $code;
+        } else {
+            return var_export($var, $return);
+        }
+    }
+
     static function FPC($f, $d, $o = null)
     {
         $f = str_replace('c:/home/', '', $f);#loclahost
