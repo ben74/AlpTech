@@ -2088,11 +2088,23 @@ class fun /* extends base */
         return $km;
     }
 
-    static function shortDist($olat, $olon, $dist)
+    static function shortDist($olat, $olon, $dist = 1, $maxDistance = null)
     {
-        $latDegDist = static::distance($olat, $olat + 1, $olon, $olon);#updown::  111 km par deg
-        $lonDegDist = static::distance($olat, $olat, $olon, $olon + 1);#rightleft:: 77 km
-        $dlon = $dist / $lonDegDist;
+        $devVerticaleDistLong = 0;
+        $latDegDist = static::distance($olat, $olat + 1, $olon, $olon);# updown::  111 km par deg
+        // Combien represente cette distance en degré de latitude ? afin de calculer le rectangle depuis la latitude la plus large proche de l'équateur ...
+
+        if('lonDegDistortion closest to equatorial line for better rectangle inclusion'){
+            $devLat=$olat;
+            if(!$maxDistance)$maxDistance=$dist;
+            $devVerticaleDistLong = $maxDistance / $latDegDist;
+            if($olat>0)$devLat-=$devVerticaleDistLong;//north
+            else $devLat+=$devVerticaleDistLong;//south
+        }
+
+        $lonDegDist = static::distance($devLat, $devLat, $olon, $olon + 1);# rightleft:: 77 km par deg à 45°, se rapprocher de l'équateur ..
+
+        $dlon = $dist / $lonDegDist;// degrees per km
         $dlat = $dist / $latDegDist;
         $rect = [$olat - $dlat, $olat + $dlat, $olon - $dlon, $olon + $dlon];
         return $rect;
@@ -2976,6 +2988,22 @@ class fun /* extends base */
         }
         fclose($fp);
         return $response;
+    }
+    static function args()
+    {
+        $argvs=$GLOBALS['argv'];
+        array_shift($argvs);// script name
+        $args = array();
+        foreach ($argvs as $argv) {
+            if (($decoded = static::jsonValid($argv)) && $decoded) {
+                $args = array_merge($args, $decoded);
+            } elseif (preg_match('/^--([^=]+)=(.*)/', $argv, $match)) {
+                $args[$match[1]] = $match[2];
+            } elseif (preg_match('/^([^=]+)=([^=]+)/', $argv, $match)) {
+                $args[$match[1]] = $match[2];
+            }
+        }
+        return $args;
     }
 }
 
