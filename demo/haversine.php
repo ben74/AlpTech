@@ -13,9 +13,12 @@ $table = 'latlon';$db = 'haversine';fun::setStatic('conf', ['haversine'=>['h'=>'
 
 extract(fun::args());
 
-#play it this way :: gzip -d latlon.sql.gz;mysql -pb haversine < latlon.sql
-#phpx C:\Users\ben\home\d9\vendor\alptech\wip\demo\haversine.php lat=46 lon=6 dist=70
-#phpx C:\Users\ben\home\d9\vendor\alptech\wip\demo\haversine.php '{"lat":46,"lon":6,"dist":45}'
+/*
+play it this way ::
+cd vendor/alptech/wip/demo
+gzip -d latlon.sql.gz;mysql -pb haversine < latlon.sql
+phpx  haversine.php lat=46 lon=6 dist=70 '{"lat":46,"lon":6,"dist":45}'
+*/
 chdir(__DIR__);
 
 
@@ -73,7 +76,7 @@ if('2) haversine with where'){
     $time['haver: adding where limitation :' . count(end($x))] = round(microtime(1) - $a,6);#real results !
 }
 
-if('3) harversine within rectangle'){
+if('3) harversine within rectangle, limits computations on huge sets'){
     $s = "select (6371 * acos(cos(radians(latitude)) * cos(radians($lat)) * cos(radians($lon) -radians(longitude)) + sin(radians(latitude)) * sin(radians($lat)))) as distance,a.* from $table a where latitude between $_rect[0] and $_rect[1] and longitude between $_rect[2] and $_rect[3] having distance <= $dist order by distance asc";
     $a = microtime(1);
     $last=$x[] = fun::sql($s, $db);

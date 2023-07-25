@@ -2995,6 +2995,7 @@ class fun /* extends base */
         array_shift($argvs);// script name
         $args = array();
         foreach ($argvs as $argv) {
+            $argv=trim($argv,"'");
             if (($decoded = static::jsonValid($argv)) && $decoded) {
                 $args = array_merge($args, $decoded);
             } elseif (preg_match('/^--([^=]+)=(.*)/', $argv, $match)) {
