@@ -62,9 +62,7 @@ if('haversine simple'){
     $last=$x[] = fun::sql($s, $db);
     $k='haver:' . count(end($x));
     $time[$k.':elements, always consider first result not in cache'] = round(microtime(1) - $a,6);#real results !
-    foreach (end($x) as $t) {
-        $oids[] = $t['id'];
-    }
+    $oids =array_map(function($a){return $a['id'];},end($x));
     $deviation[$k]='0 -- is the most reliable result ever =)';
 }
 if(!$oids)$oids=[1];
@@ -82,9 +80,7 @@ if('3) harversine within rectangle, limits computations on huge sets'){
     $last=$x[] = fun::sql($s, $db);
     $time['rectangle boundaries+haver:slighthly faster?:' . count(end($x))] = round(microtime(1) - $a,6);
 
-    foreach (end($x) as $t) {
-        if($t['id']) $nids[] = $t['id'];
-    }
+    $nids =array_map(function($a){return $a['id'];},end($x));
     if(!$nids)die('no results');
 
     $deviation['bound+haver:slighthly faster?:'] = (count(array_diff($oids, $nids)) + count(array_diff($nids, $oids))) * 100 / count($oids);
@@ -108,10 +104,7 @@ $a = microtime(1);
 $x[] = fun::sql($s, $db);
 $time['rect+hyp:' . count(end($x))] = microtime(1) - $a;
 
-$nids = [];
-foreach (end($x) as $t) {
-    $nids[] = $t['id'];
-}
+$nids =array_map(function($a){return $a['id'];},end($x));
 $deviation['rect+hyp:'] = (count(array_diff($oids, $nids)) + count(array_diff($nids, $oids))) * 100 / count($oids);
 
 
@@ -125,12 +118,10 @@ if ('#5rd) Rectangle :: obtention de plus de résultats, plus rapidement, à aff
     $s = "select a.* from $table a where latitude between $_rect[0] and $_rect[1] and longitude between $_rect[2] and $_rect[3] -- le plus rapide en sql c'est évident, et plus avec des indexs encore";
     $a = microtime(1);
     $z = fun::sql($s, $db);
-    $k = 'rect:before refining distance results : ';
-    $time[$k . count($z)] = round(microtime(1) - $a,6);
-    $nids = [];
-    foreach ($z as $t) {
-        $nids[] = $t['id'];
-    }
+    $k = 'rect:before refining distance results';
+    $nids =array_map(function($a){return $a['id'];},$z);
+
+    $time[$k . ':' . count($z)] = round(microtime(1) - $a, 6);
     $deviation[$k] = (count(array_diff($oids, $nids)) + count(array_diff($nids, $oids))) * 100 / count($oids);
     $a=microtime(1);
     foreach ($z as &$t) {
@@ -139,10 +130,14 @@ if ('#5rd) Rectangle :: obtention de plus de résultats, plus rapidement, à aff
             $y['excluded from results with too big distance']++;
             $t = null;
         }
-    }
-    $z = array_filter($z);//remove  excluded
-    $time[$k . count($z).': haversine calcul distances ( faster than pythagore )'] = round(microtime(1) - $a,6);
-    $time['--toofarawayExcludedElements'] = $y['excluded from results with too big distance'];
+    }unset($t);$z = array_filter($z);//remove  excluded
+    $time['excludedElementTooFar ( so increase dist a little on approximation )'] = $y['excluded from results with too big distance'];
+    $time['then calcl distances ( faster than pythagore )'] = round(microtime(1) - $a,6);
+
+$k='outliers removed then... shall be 0 is correct then :)';
+$nids =array_map(function($a){return $a['id'];},$z);
+    $deviation[$k] = (count(array_diff($oids, $nids)) + count(array_diff($nids, $oids))) * 100 / count($oids);
+
 
     $kmPerLatDegrees = 6372.797* M_PI / 180;
     $y['excluded from results with too big distance'] = $totalDeviation=0;
@@ -165,13 +160,10 @@ if($tests and 'plus long de calculer via pythagore ...'){
 }
     $x[] = $z;
 
-    $k = "--le calcul de la distance entre 2 points consommera toujours du temps cpu en sql ou php:";
-    $nids = [];
-    foreach ($z as $t) {
-        $nids[] = $t['id'];
-    }
+    $k = "--le calcul de la distance entre 2 points consommera toujours du temps cpu en sql ou php";
+    $nids =array_map(function($a){return $a['id'];},$z);
     $deviation[$k] = (count(array_diff($oids, $nids)) + count(array_diff($nids, $oids))) * 100 / count($oids);
-    $time[$k . count($z)] = round(microtime(1) - $a,6);
+    //$time[$k] = round(microtime(1) - $a,6);
 }
 print_r(compact('time', 'deviation'));
 return; ?>
