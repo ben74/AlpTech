@@ -120,8 +120,8 @@ if ('#5rd) Rectangle :: obtention de plus de résultats, plus rapidement, à aff
     $z = fun::sql($s, $db);
     $k = 'rect:before refining distance results';
     $nids =array_map(function($a){return $a['id'];},$z);
+    $tot=$time[$k . ':' . count($z)] = round(microtime(1) - $a, 6);
 
-    $time[$k . ':' . count($z)] = round(microtime(1) - $a, 6);
     $deviation[$k] = (count(array_diff($oids, $nids)) + count(array_diff($nids, $oids))) * 100 / count($oids);
     $a=microtime(1);
     foreach ($z as &$t) {
@@ -132,7 +132,8 @@ if ('#5rd) Rectangle :: obtention de plus de résultats, plus rapidement, à aff
         }
     }unset($t);$z = array_filter($z);//remove  excluded
     $time['excludedElementTooFar ( so increase dist a little on approximation )'] = $y['excluded from results with too big distance'];
-    $time['then calcl distances ( faster than pythagore )'] = round(microtime(1) - $a,6);
+    $tot+=$time['then calcl distances ( faster than pythagore )'] = round(microtime(1) - $a,6);
+    $time['total alternative']=$tot;
 
 $k='outliers removed then... shall be 0 is correct then :)';
 $nids =array_map(function($a){return $a['id'];},$z);
