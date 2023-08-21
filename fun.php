@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [],$conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $statusCode=200,$connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [],$conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
         if(!$x)return;
@@ -159,7 +159,8 @@ class fun /* extends base */
     static function r404($x = '', $y = '')
     {
         if ($y) null;
-        header('HTTP/1.0 404 Not Found', 1, 404);
+        static::$statusCode=404;
+        header('HTTP/1.0 404 Not Found', true, static::$statusCode);
         static::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
     }
 
@@ -859,8 +860,9 @@ class fun /* extends base */
         if ($virtual) {
             return __function__ . '/' . static::getConf('defaultImage');
         }
+        static::$statusCode=404;
         header('Content-type: image/png');
-        header('HTTP/1.0 404 Not Found', 1, 404);
+        header('HTTP/1.0 404 Not Found', true, static::$statusCode);
         readfile(static::getConf('defaultImage'));
         static::_die();
         #static::die("/*$x*/");
@@ -1686,7 +1688,7 @@ class fun /* extends base */
                 $res[] = $x;
             }
         }
-        if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {// id unikk is null
+        if (strpos($sql, ' as unikk') and (!$res or (count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])))) {// id unikk is null
             return null;
         }
         return $res;
@@ -2839,7 +2841,7 @@ class fun /* extends base */
             $values['ip'] = static::$ip = '127.0.0.1';
             $values['h'] = $values['cli'] = $values['env'] = static::$env = static::$h = static::$ext = 'cli';
             $script = array_shift($a);
-            if (strpos($script, '/') === FALSE){
+            if ($script && strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
             $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
@@ -2944,10 +2946,8 @@ class fun /* extends base */
 
     static function h()
     {
-        static $t;
-        if ($t) return;
-        $t = 1;
-        header('Content-Type: text/html; charset=utf-8', 1, 200);
+        static $t;if ($t) return;$t = 1;// sets to 404 if 404 previously declared ( dont mess with this seo penalty )
+        header('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
     }
 
     // postNoReturn($url, ['a'=>1],'application/x-www-form-urlencoded');
