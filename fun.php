@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [],$conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $statusCode=200,$connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [],$conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
         if(!$x)return;
@@ -159,7 +159,8 @@ class fun /* extends base */
     static function r404($x = '', $y = '')
     {
         if ($y) null;
-        header('HTTP/1.0 404 Not Found', 1, 404);
+        static::$statusCode=404;
+        header('HTTP/1.0 404 Not Found', true, static::$statusCode);
         static::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
     }
 
@@ -612,8 +613,8 @@ class fun /* extends base */
         $headers[] = 'Expect:';/*100 header*/
         if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
             $url = $opt[CURLOPT_URL];
-        }
-        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_VERBOSE => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout, CURLOPT_HTTPHEADER => $headers];
+        }// CURLOPT_VERBOSE => 1,
+        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout, CURLOPT_HTTPHEADER => $headers];
         if ($follow) {
             $opts += [CURLOPT_FOLLOWLOCATION => $follow];
         }#
@@ -859,8 +860,9 @@ class fun /* extends base */
         if ($virtual) {
             return __function__ . '/' . static::getConf('defaultImage');
         }
+        static::$statusCode=404;
         header('Content-type: image/png');
-        header('HTTP/1.0 404 Not Found', 1, 404);
+        header('HTTP/1.0 404 Not Found', true, static::$statusCode);
         readfile(static::getConf('defaultImage'));
         static::_die();
         #static::die("/*$x*/");
@@ -1686,7 +1688,7 @@ class fun /* extends base */
                 $res[] = $x;
             }
         }
-        if (strpos($sql, ' as unikk') and count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])) {// id unikk is null
+        if (strpos($sql, ' as unikk') and (!$res or (count($res) == 1 and isset($res[0]['unikk']) and is_null($res[0]['unikk'])))) {// id unikk is null
             return null;
         }
         return $res;
@@ -1702,10 +1704,10 @@ class fun /* extends base */
         static $nbr = 0;
         //$cn->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
         if (!$options) {
-            $options = array(
-                \PDO::ATTR_EMULATE_PREPARES => true,// keep it fast please , still converts to integer, funny, nope ?
+            $options = array(//https://phpdelusions.net/pdo#emulation_on
+                \PDO::ATTR_EMULATE_PREPARES => true,// PDO is able to run multiple queries in one prepared statement. ,keep it fast please , still converts to integer, funny, nope ? multiple placeholde same value
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false,
+                \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false,// same ram :)
                 //  \PDO::ATTR_PERSISTENT => TRUE,  // we want to use persistent connections
                 //  \PDO::MYSQL_ATTR_COMPRESS => TRUE, // MySQL-specific attribute
             );
@@ -2839,7 +2841,7 @@ class fun /* extends base */
             $values['ip'] = static::$ip = '127.0.0.1';
             $values['h'] = $values['cli'] = $values['env'] = static::$env = static::$h = static::$ext = 'cli';
             $script = array_shift($a);
-            if (strpos($script, '/') === FALSE){
+            if ($script && strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
             $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
@@ -2944,10 +2946,8 @@ class fun /* extends base */
 
     static function h()
     {
-        static $t;
-        if ($t) return;
-        $t = 1;
-        header('Content-Type: text/html; charset=utf-8', 1, 200);
+        static $t;if ($t) return;$t = 1;// sets to 404 if 404 previously declared ( dont mess with this seo penalty )
+        header('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
     }
 
     // postNoReturn($url, ['a'=>1],'application/x-www-form-urlencoded');
@@ -2989,6 +2989,7 @@ class fun /* extends base */
         fclose($fp);
         return $response;
     }
+
     static function args()
     {
         $argvs=$GLOBALS['argv'];
@@ -3005,6 +3006,32 @@ class fun /* extends base */
             }
         }
         return $args;
+    }
+
+    static function tileFromLatLonZoom($lat, $lon, $zoom = 10, $toInt = false)
+    {
+        $lat_rad = deg2rad((float)$lat);
+        $n = pow(2, $zoom);
+        $x = $n * (($lon + 180) / 360);// toujours équivalente : 45° même distance en ordonnées lecture verticale
+        //$y = $n * (1 - (log(tan($lat_rad) + sec($lat_rad)) / $n)) / 2;
+        $asinh = asinh(tan($lat_rad));//log(tan($lat_rad) + sec($lat_rad))
+        $y = $n * (1 - $asinh / M_PI) / 2;
+        if ($toInt) {
+            return (int)$zoom . '/' . (int)$x . '/' . (int)$y;
+        }
+
+        //$y = $n * (1 - (log(tan($lat_rad) + sec($lat_rad)) / $n)) / 2;
+        return $zoom . '/' . $x . '/' . $y;
+    }
+
+    static function latLonFromTile($tile)
+    {
+        [$zoom, $x, $y] = explode('/', $tile, 3);
+        $n = 2 ** $zoom;
+        return [
+            'lat' => atan(sinh(M_PI * (1 - 2 * $y / $n))) * 180.0 / M_PI,
+            'lng' => $x / $n * 360.0 - 180.0,
+        ];
     }
 }
 
