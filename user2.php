@@ -6,7 +6,8 @@ namespace Alptech\Wip;
 
 class user2 extends model /* extends base */
 {
-    static $table='user2';static function table(){return static::$table;}//$path = explode('\\', __CLASS__);return array_pop($path);
+    static $table = 'user2', $attributes = ['id', 'name'];
+    static function table(){return static::$table;}//$path = explode('\\', __CLASS__);return array_pop($path);
 }
 
 return; ?>

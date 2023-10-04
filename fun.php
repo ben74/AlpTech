@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $statusCode=200,$connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [],$conf = [], $args = [],$_shared = [], $quotes=["'",'"'], $unquotes=["′",'″'];
+    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
         if(!$x)return;
@@ -1390,20 +1390,21 @@ class fun /* extends base */
         $nbr++;
         $start = microtime(true);
         $baseConf = $sql;
+        $s = null;
         $s = static::getConf($conf);#<==== attention, pleins de trucs ont besoin de cleaalptech utf8 set names as default
-        if($sqlConnParameters){$s=$sqlConnParameters;extract($s);}
+        if($sqlConnParameters){$s=$sqlConnParameters;}
         //$names = $s['names'];//UTF8 ou
         if (is_array($sql)) {
             extract($sql);
             if (is_array($sql) and !isset($sql['sql'])) {
                 $sql = 0;#not within extration
             }
-            if($sqlConnParameters){$s=$sqlConnParameters;extract($s);}
-            #unset($sql);
-            if (isset($s)) {#encore des confs nesteés
-                extract($s);
+            if($sqlConnParameters){$s=$sqlConnParameters;}
+            if(!$s && $conf){
+                $s = static::getConf($conf);
             }
         }#overrides
+        if($s){extract($s);}//extract conf
 
         if ($try > 3) return;
         $stmt = 0;
@@ -1659,16 +1660,105 @@ class fun /* extends base */
         return $res;
     }
 
-    static function sqlClassifier($sql, $data)
+    static function sqlClassifier($sql, $realSqlOutputData)
     {// as ARRAYK, beware/
+        $K1 = strpos($sql, 'as K1');
+        $K2 = strpos($sql, 'as K2');
+        $K3 = strpos($sql, 'as K3');
+        $K4= strpos($sql, 'as K4');
         $arrayk = strpos($sql, 'as ARRAYK');#array_key_exists('ARRAYK', $x);# (isset($x['ARRAYK']) or is_null($x['ARRAYK']));
         $pkid = strpos($sql, 'as pkid');#array_key_exists('pkid', $x);#(isset($x['pkid']) or is_null($x['pkid']));
         $unikk = strpos($sql, 'as unikk');#array_key_exists('unikk', $x);#(isset($x['unikk']) or is_null($x['unikk']));
         $roww = strpos($sql, 'as roww');#array_key_exists('roww', $x);#(isset($x['roww']) or is_null($x['roww']));
-        if (!$arrayk && !$pkid && !$unikk && !$roww) return $data;
-        $res=[];
-        foreach ($data as $x) {
-            if ($arrayk and $pkid and $unikk) {// 2 dmin
+        if (!$K1 && !$K2 && !$K3 && !$K4 && !$arrayk && !$pkid && !$unikk && !$roww){
+            return $realSqlOutputData;
+        }
+        $fi = $res = [];
+        foreach ($realSqlOutputData as $x) {
+            if ($K4 and $K3 and $K2 and $K1) {//etc .. dépend de si il reste d'autres données utiles ..
+                extract($x);
+                $reste = array_diff_key($x, ['K1' => 1, 'K2' => 1, 'K3' => 1, 'K4' => 1]);
+                if ($reste) {
+                    if (isset($fi[$K1.$K2.$K3.$K4])) {
+                        if ($fi[$K1.$K2.$K3.$K4] < 2) {
+                            $fi[$K1.$K2.$K3.$K4]++;
+                            $res[$K1][$K2][$K3][$K4] = [$res[$K1][$K2][$K3][$K4]];
+                        }
+                        $res[$K1][$K2][$K3][$K4][] = $reste;
+                    } elseif ('attribution simple, première fois') {
+                        $fi[$K1.$K2.$K3.$K4]=1;
+                        $res[$K1][$K2][$K3][$K4] = $reste;
+                    }
+                } elseif (isset($res[$K1][$K2][$K3])) {
+                    if (!is_array($res[$K1][$K2][$K3])) {
+                        $res[$K1][$K2][$K3] = [$res[$K1][$K2][$K3]];
+                    }
+                    $res[$K1][$K2][$K3][] = $K4;
+                } elseif ('attribution simple') {
+                    $res[$K1][$K2][$K3] = $K4;
+                }
+            } elseif ($K3 and $K2 and $K1) {
+                extract($x);
+                $reste = array_diff_key($x, ['K1' => 1, 'K2' => 1, 'K3' => 1]);
+                if ($reste) {
+                    if (isset($fi[$K1.$K2.$K3])) {
+                        if ($fi[$K1.$K2.$K3] < 2) {
+                            $fi[$K1.$K2.$K3]++;
+                            $res[$K1][$K2][$K3] = [$res[$K1][$K2][$K3]];
+                        }
+                        $res[$K1][$K2][$K3][] = $reste;
+                    } elseif ('attribution simple, première fois') {
+                        $res[$K1][$K2][$K3] = $reste;
+                        $fi[$K1.$K2.$K3]=1;
+                    }
+                } elseif (isset($res[$K1][$K2])) {
+                    if (!is_array($res[$K1][$K2])) {
+                        $res[$K1][$K2] = [$res[$K1][$K2]];
+                    }
+                    $res[$K1][$K2][] = $K3;
+                } elseif ('attribution simple') {
+                    $res[$K1][$K2] = $K3;
+                }
+            } elseif ($K2 and $K1) {
+                extract($x);
+                $reste = array_diff_key($x, ['K1' => 1, 'K2' => 1]);
+                if ($reste) {
+                    if (isset($fi[$K1.$K2])) {
+                        if ($fi[$K1.$K2] < 2) {
+                            $fi[$K1.$K2]++;
+                            $res[$K1][$K2] = [$res[$K1][$K2]];
+                        }
+                        $res[$K1][$K2][] = $reste;
+                    } elseif ('attribution simple, première fois') {
+                        $res[$K1][$K2] = $reste;
+                        $fi[$K1.$K2]=1;
+                    }
+                } elseif (isset($res[$K1])) {
+                    if (!is_array($res[$K1])) {
+                        $res[$K1] = [$res[$K1]];
+                    }
+                    $res[$K1][] = $K2;
+                } elseif ('attribution simple') {
+                    $res[$K1] = $K2;
+                }
+            } elseif ($K1) {
+                $K1 = $x['K1'];
+                $reste = array_diff_key($x, ['K1' => 1]);
+                if ($reste) {
+                    if (isset($fi[$K1])) {
+                        if ($fi[$K1] < 2) {
+                            $fi[$K1]++;
+                            $res[$K1] = [$res[$K1]];
+                        }
+                        $res[$K1][] = $reste;
+                    } elseif ('attribution simple, première fois') {
+                        $res[$K1] = $reste;
+                        $fi[$K1]=1;
+                    }
+                } else {
+                    $res[] = $K1;
+                }
+            }elseif ($arrayk and $pkid and $unikk) {// 2 dmin
                 $res[$x['ARRAYK']][$x['pkid']] = $x['unikk'];
             } elseif ($arrayk and $unikk) {// 1 dim
                 $res[$x['ARRAYK']][] = $x['unikk'];
@@ -2996,16 +3086,23 @@ class fun /* extends base */
         array_shift($argvs);// script name
         $args = array();
         foreach ($argvs as $argv) {
-            $argv=trim($argv,"'");
+            $argv = trim($argv, "'");
             if (($decoded = static::jsonValid($argv)) && $decoded) {
                 $args = array_merge($args, $decoded);
-            } elseif (preg_match('/^--([^=]+)=(.*)/', $argv, $match)) {
-                $args[$match[1]] = $match[2];
-            } elseif (preg_match('/^([^=]+)=([^=]+)/', $argv, $match)) {
-                $args[$match[1]] = $match[2];
+            } elseif (preg_match('/^--(?<arg>[^=]+)=(?<val>.*)/', $argv, $match)) {
+                $args[$match['arg']] = static::jsonDecodedOrValue($match['val']);
+            } elseif (preg_match('/^(?<arg>[^=]+)=(?<val>[^=]+)/', $argv, $match)) {
+                $args[$match['arg']] = static::jsonDecodedOrValue($match['val']);
             }
         }
         return $args;
+    }
+
+    static function jsonDecodedOrValue($x){
+        if (($decoded = static::jsonValid($x)) && $decoded) {
+            return $decoded;
+        }
+        return $x;
     }
 
     static function tileFromLatLonZoom($lat, $lon, $zoom = 10, $toInt = false)
