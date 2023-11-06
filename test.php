@@ -98,6 +98,8 @@ try {
 } catch (\throwable $___e) {
     $a['exception'] = $___e->getMessage();
 }
-die(fun::cleanHtml(json_encode($a)));?>
+die(fun::cleanHtml(json_encode($a)));
+return;?>
 
-
+INSERT INTO table (id, name, age) VALUES(1, "A", 19) ON DUPLICATE KEY UPDATE name="A", age=19
+REPLACE INTO `tablename` (`id`, `name`, `age`) VALUES (1, "A", 19)

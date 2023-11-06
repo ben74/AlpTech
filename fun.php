@@ -6,7 +6,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'];
+    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = ['encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC'];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
         if(!$x)return;
@@ -1597,6 +1597,7 @@ class fun /* extends base */
     static function verb($sql)
     {
         $verbs = [
+            'pragma' => (stripos($sql, 'pragma ') !== FALSE ? 1 + stripos($sql, 'pragma ') : null),
             'select' => (stripos($sql, 'select ') !== FALSE ? 1 + stripos($sql, 'select ') : null),
             'insert' => (stripos($sql, 'insert ') !== FALSE ? 1 + stripos($sql, 'insert ') : null),
             'update' => (stripos($sql, 'update ') !== FALSE ? 1 + stripos($sql, 'update ') : null),
@@ -1635,14 +1636,15 @@ class fun /* extends base */
 
             if($params){
                 $res = $kon->prepare($sql);
+                // bindValue
                 $res->execute($params);
-            }elseif($verb=='select'){
+            } elseif (in_array($verb, ['select', 'pragma'])) {
                 $res = $kon->query($sql);//$nbres = count($res);
             }else{
                 $res = $kon->exec($sql);
             }
 
-            if ($verb == 'select') {
+            if (in_array($verb, ['select', 'pragma'])) {
                 $res = $res->fetchAll();
                 if ($cb) {
                     $res = $cb($res);
@@ -2923,7 +2925,7 @@ class fun /* extends base */
     }
 
     static function init()
-    {
+    {		
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
             $values = [];
@@ -2948,7 +2950,7 @@ class fun /* extends base */
                     $values['args'][$m[1]]=static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 }
             }
-            static::conf($values);
+            static::conf(array_merge(static::$defaults,$values));
 
         }else{// http forwarded request
             static::$u = $u = $_SERVER['REQUEST_URI'];
@@ -2962,7 +2964,8 @@ class fun /* extends base */
             static::$h = $h = $_SERVER['HTTP_HOST'];
             static::$local=(strpos($h,'127.0.0.1')!==FALSE or substr($h,0,4)=='192.');
             static::$dr = $_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
-        }
+            static::conf(static::$defaults);
+        }       
     }
 
     static function jsonValid($json, $asArray = true)
@@ -3130,6 +3133,26 @@ class fun /* extends base */
             'lng' => $x / $n * 360.0 - 180.0,
         ];
     }
+
+    static function encrypt($password){
+		$key = static::conf('encryptionKey');
+		$cipher = static::conf('encryptionAlgo');
+		$iv = random_bytes(openssl_cipher_iv_length($cipher));
+		$value = \openssl_encrypt(/*$serialize ? serialize($password) : */$password, $cipher, $key, 0, $iv);
+        $iv = base64_encode($iv);
+        $mac = hash_hmac("sha256", $iv . $value, $key);
+        $json = json_encode(compact('iv', 'value', 'mac'), JSON_UNESCAPED_SLASHES);
+        return base64_encode($json);        
+    }
+    
+    static function decrypt($password){
+		$v = base64_decode($password);
+        $payload = json_decode($v, true);
+        $iv = base64_decode($payload['iv']);
+        $decrypted = \openssl_decrypt($payload['value'], static::conf('encryptionAlgo'), static::conf('encryptionKey'), 0, $iv);
+        //$decrypted=unserialize($decrypted);
+        return $decrypted;
+    }   
 }
 
 fun::init();
