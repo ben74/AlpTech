@@ -1,12 +1,9 @@
 <?php
-/*
- * $_ENV['conf']['nostats']=1;//reduces memory usage : no mysql results keps
- */
 namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = ['encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC'];
+    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = ['encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
         if(!$x)return;
@@ -1580,7 +1577,7 @@ class fun /* extends base */
             $reproductible = json_encode([$res, $sql]);
             $a = 1;
         }
-        if (!isset($_ENV['conf']['nostats'])) {
+        if (conf('sqlStats')) {
             $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
             if (isset($_ENV['_sqlT'])) {
                 $_ENV['_sqlT'][$sql] = microtime(true) - $start;
