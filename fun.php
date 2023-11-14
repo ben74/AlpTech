@@ -3,7 +3,9 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = ['buffer'=>''], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = ['redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
+    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = ['buffer'=>''], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
+        'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/']
+        ,'redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
         if(!isset($x) || !$x)return;
@@ -2908,6 +2910,9 @@ class fun /* extends base */
         return static::$env=='cli';
     }
 
+    static function postInit(){
+        foreach(static::$defaults['autoloadPaths'] as &$v){$v=str_replace('#DR#',static::$dr,$v);}unset($v);
+    }
     static function init()
     {
         if (isset($GLOBALS['argv'])) {
@@ -2922,6 +2927,7 @@ class fun /* extends base */
             }
             $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
             $values['dr'] = static::$dr = trim(\dirname(static::$u).'/') . '/';
+            static::postInit();
             $values['q'] = static::$q = implode(',', $a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
             $values['args'] = [];
             foreach ($a as $v) {
@@ -2949,6 +2955,7 @@ class fun /* extends base */
             static::$h = $h = $_SERVER['HTTP_HOST'];
             static::$local = (strpos($h, '127.0.0.1') !== FALSE or substr($h, 0, 4) == '192.');
             static::$dr = $_SERVER['DOCUMENT_ROOT'] ? rtrim($_SERVER['DOCUMENT_ROOT'], '/').'/' : null;
+            static::postInit();
             static::conf(array_merge($_GET, static::$defaults));
         }
 
@@ -3238,15 +3245,31 @@ class fun /* extends base */
         if (is_array($loaded) and in_array($name, $loaded)) {
             return 1;
         }
-
         $x = explode('\\', $name);
-        $paths = [static::$dr . end($x) . '.php', __DIR__ . '/classes/' . end($x) . '.php'];
+        $x = end($x);
+        $possibles = [str_replace('\\', '/', $name), $x];//full,then short
         //echo json_encode($paths);
-        foreach ($paths as $f) {
-            if (is_file($f)) {
-                require_once $f;
-                $loaded[] = $name;
-                return true;
+        foreach (static::$data['autoloadPaths'] as $f) {
+            foreach($possibles as $possible){
+                $d = $f . $possible;// todo empilage de chemin magento like ..
+                if(strpos($d,'app/dev/app/ppd/')!==FALSE){
+                    $d=str_replace('app/dev/app/ppd/','app/ppd/',$d);
+                }
+                if(strpos($d,'app/dev/app/prod/')!==FALSE){
+                    $d=str_replace('app/dev/app/prod/','app/prod/',$d);
+                }
+                if(strpos($d,'app/ppd/app/prod/')!==FALSE){
+                    $d=str_replace('app/ppd/app/prod/','app/prod/',$d);
+                }
+
+                $f2 = str_replace('//','/',$d . '.php');
+                //echo"\n$f2";// app/dev/app/ppd/class1.php ->
+                if (is_file($f2)) {
+                   // echo"->1";
+                    require_once $f2;
+                    $loaded[$name] = $f2;
+                    return true;
+                }
             }
         }
     }
