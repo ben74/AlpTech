@@ -3,10 +3,10 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = [], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = ['encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
+    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = ['buffer'=>''], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = ['redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
-        if(!$x)return;
+        if(!isset($x) || !$x)return;
         elseif(is_array($x)){
             static::$data=array_merge(static::$data,$x);
         }elseif(isset(static::$data[$x])){
@@ -140,6 +140,7 @@ class fun /* extends base */
         return;#nothing found
     }
 
+    // not such a good practise ..
     static function _die($x = null)
     {
         $_ENV['die'] = 1;
@@ -157,12 +158,16 @@ class fun /* extends base */
     {
         if ($y) null;
         static::$statusCode=404;
-        header('HTTP/1.0 404 Not Found', true, static::$statusCode);
+        static::hl('HTTP/1.0 404 Not Found', true, static::$statusCode);
         static::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
     }
 
     static function hl($a = '', $b = true, $c = null)
     {
+        if(static::iscli()){
+            echo"\nHeader:$a $b $c";
+            return;
+        }
         \header($a, $b, $c);
     }
 
@@ -858,8 +863,8 @@ class fun /* extends base */
             return __function__ . '/' . static::getConf('defaultImage');
         }
         static::$statusCode=404;
-        header('Content-type: image/png');
-        header('HTTP/1.0 404 Not Found', true, static::$statusCode);
+        static::hl('Content-type: image/png');
+        static::hl('HTTP/1.0 404 Not Found', true, static::$statusCode);
         readfile(static::getConf('defaultImage'));
         static::_die();
         #static::die("/*$x*/");
@@ -1982,11 +1987,11 @@ class fun /* extends base */
 
     static function nocache()
     {
-        header("Expires: on, 23 Feb 1983 19:37:15 GMT");
-        header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
-        header("Cache-Control: no-store, no-cache, must-revalidate");
-        header("Cache-Control: post-check=0, pre-check=0", false);
-        header("Pragma: no-cache");
+        static::hl("Expires: on, 23 Feb 1983 19:37:15 GMT");
+        static::hl("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
+        static::hl("Cache-Control: no-store, no-cache, must-revalidate");
+        static::hl("Cache-Control: post-check=0, pre-check=0", false);
+        static::hl("Pragma: no-cache");
     }
 
     static function sendMail($to, $sub, $body, $head = null, $from = null, $mid = '')
@@ -2598,46 +2603,24 @@ class fun /* extends base */
         return fgc($f);
     }
 
-    static function rc()
-    {
-        if (isset($_ENV['rc'])) return;
-        if (!class_exists('redis')) {
-            $_ENV['rce'] = 'no redis';
-            $_ENV['rc'] = new redisfs();
-            return;
-        }
-        try {
-            $_ENV['rc'] = new \Redis();
-            $_ENV['rc']->connect($_ENV['redis']['h'], $_ENV['redis']['p']);
-        } catch (\Exception $e) {
-            $_ENV['rce'] = $e;
-            $_ENV['rc'] = new redisfs();
-        }
-        if (isset($_ENV['redis']['pw'])) $_ENV['rc']->auth($_ENV['redis']['pw']);
-    }
-
     static function rs($k, $v)
     {
-        static::rc();
-        $_ENV['rc']->set($k, $v);
+        return static::sset($k, $v);
     }
 
     static function rk($k = '*')
     {
-        static::c();
-        return $_ENV['rc']->keys($k);
+        return static::rc()->keys($k);
     }
 
     static function rg($k)
     {
-        static::rc();
-        return $_ENV['rc']->get($k);
+        return static::rc()->sget($k);
     }
 
     static function rd($k)
     {
-        static::rc();
-        return $_ENV['rc']->del($k);
+        return static::rc()->del($k);
     }
 
     static function sendPhpMail($to, $sub, $msg, $smtp, $from, $pass, $pk, $dkPass, $domain, $log = null, $smtpPort = 465, $dkSel = 'dk1024-2012', $alt='--nohtml,sorry')
@@ -2698,14 +2681,14 @@ class fun /* extends base */
                 (isset($_SERVER['HTTP_IF_NONE_MATCH']) and $_SERVER['HTTP_IF_NONE_MATCH'] == $etag)
                 or (!$customEtag and isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) and $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $date) // simple mode using last modified
         ) {
-            header('HTTP/1.1 304 Not Modified', 1, 304);
+            static::hl('HTTP/1.1 304 Not Modified', 1, 304);
             die;
         }
-        header('ETag: ' . $etag, 1);
-        header('Cache-Control: public, max-age=' . $expiration, 1);
-        header('Last-Modified: ' . $date, 1);
+        static::hl('ETag: ' . $etag, 1);
+        static::hl('Cache-Control: public, max-age=' . $expiration, 1);
+        static::hl('Last-Modified: ' . $date, 1);
         $date2 = gmdate('D, j M Y H:i:s', time() + $expiration) . ' GMT';
-        header('Expires: ' . $date2, 1);
+        static::hl('Expires: ' . $date2, 1);
     }
 
     /**
@@ -2921,8 +2904,12 @@ class fun /* extends base */
         return $out;
     }
 
+    static function iscli(){
+        return static::$env=='cli';
+    }
+
     static function init()
-    {		
+    {
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
             $values = [];
@@ -2934,35 +2921,39 @@ class fun /* extends base */
                 $script = \getcwd().'/'.$script;
             }
             $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
-            $values['dr'] = static::$dr = \dirname(static::$u);
+            $values['dr'] = static::$dr = trim(\dirname(static::$u).'/') . '/';
             $values['q'] = static::$q = implode(',', $a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
-            foreach($a as $v) {
+            $values['args'] = [];
+            foreach ($a as $v) {
                 if (($decoded = static::jsonValid($v)) && $decoded) {
                     foreach ($decoded as $k => $v) {
-                        $values['args'][$k]=static::$args[$k] = $_GET[$k] = $v;
+                        $values['args'][$k] = static::$args[$k] = $_GET[$k] = $v;
                     }
-                }elseif (preg_match('/^--([^=]+)=(.*)/', $v, $m)) {
-                    $values['args'][$m[1]]=static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
+                } elseif (preg_match('/^--([^=]+)=(.*)/', $v, $m)) {
+                    $values['args'][$m[1]] = static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 } elseif (preg_match('/^([^=]+)=([^=]+)/', $v, $m)) {
-                    $values['args'][$m[1]]=static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
+                    $values['args'][$m[1]] = static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 }
             }
-            static::conf(array_merge(static::$defaults,$values));
+            static::conf(array_merge(static::$defaults, $values['args'], $values));
 
         }else{// http forwarded request
             static::$u = $u = $_SERVER['REQUEST_URI'];
             [$uq, $qs] = explode('?', $u);
             static::$q = $qs;
             static::$env = 'http';
-            static::$uq = trim($uq,'/');
-            static::$ext = (strpos($u,'.') && ($x = explode('.', $u))) ?strtolower(end($x)):'';
+            static::$uq = trim($uq, '/');
+            static::$ext = (strpos($u, '.') && ($x = explode('.', $u))) ? strtolower(end($x)) : '';
 
             static::$ip = $_SERVER['REMOTE_ADDR'];
             static::$h = $h = $_SERVER['HTTP_HOST'];
-            static::$local=(strpos($h,'127.0.0.1')!==FALSE or substr($h,0,4)=='192.');
-            static::$dr = $_SERVER['DOCUMENT_ROOT']?rtrim($_SERVER['DOCUMENT_ROOT'], '/'):null;
-            static::conf(static::$defaults);
-        }       
+            static::$local = (strpos($h, '127.0.0.1') !== FALSE or substr($h, 0, 4) == '192.');
+            static::$dr = $_SERVER['DOCUMENT_ROOT'] ? rtrim($_SERVER['DOCUMENT_ROOT'], '/').'/' : null;
+            static::conf(array_merge($_GET, static::$defaults));
+        }
+
+        spl_autoload_register([__CLASS__,'autoloader'],true,true);//above others for custom overrides
+        register_shutdown_function([__CLASS__,'shutdown'], ['parameter' => 'firstShutdown']);#1:collecteur , 2:parameters
     }
 
     static function jsonValid($json, $asArray = true)
@@ -3037,7 +3028,7 @@ class fun /* extends base */
     static function h()
     {
         static $t;if ($t) return;$t = 1;// sets to 404 if 404 previously declared ( dont mess with this seo penalty )
-        header('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
+        static::hl('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
     }
 
     // postNoReturn($url, ['a'=>1],'application/x-www-form-urlencoded');
@@ -3139,9 +3130,9 @@ class fun /* extends base */
         $iv = base64_encode($iv);
         $mac = hash_hmac("sha256", $iv . $value, $key);
         $json = json_encode(compact('iv', 'value', 'mac'), JSON_UNESCAPED_SLASHES);
-        return base64_encode($json);        
+        return base64_encode($json);
     }
-    
+
     static function decrypt($password){
 		$v = base64_decode($password);
         $payload = json_decode($v, true);
@@ -3149,7 +3140,116 @@ class fun /* extends base */
         $decrypted = \openssl_decrypt($payload['value'], static::conf('encryptionAlgo'), static::conf('encryptionKey'), 0, $iv);
         //$decrypted=unserialize($decrypted);
         return $decrypted;
-    }   
+    }
+
+// todo redis
+    static function rc(){
+        if(static::conf('rc'))return static::conf('rc');
+        $r = new \redis();
+        $r->connect(static::conf('redisHost'), static::conf('redisPort'));
+        if(static::conf('redisPass')){$r->auth(static::conf('redisPass'));}
+        static::conf(['rc'=>$r]);
+        return $r;
+    }
+
+    static function sset($k, $v=null){
+        if (is_array($k)) {
+            foreach ($k as $k2 => $v2) {
+                static::sset($k2, $v2);
+            }
+        } else {
+            static::rc()->set($k, $v);
+        }
+    }
+
+    static function sget($k){
+        return static::rc()->get($k);
+    }
+
+    static function rpush($k,$v){
+        return static::rc()->rpush($k,$v);
+    }
+
+    static function lpop($k){
+        return static::rc()->lpop($k);
+    }
+
+    static function blpop($k){
+        return static::rc()->blpop($k);
+    }
+//rd,rk ...
+    static function buffer($x=''){
+        if(is_array($x) or is_object($x))$x=json_encode($x);
+        static::$data['buffer'].=$x;
+    }
+
+    static function sendPerfHeaders(){
+        static $t;if($t)return;$t=1;
+        if (!headers_sent($file, $line) or static::iscli()) {
+            if (isset(static::$data['started'])) {
+                static::hl('aShutdowns: ' . round(microtime(true) - static::$data['started'], 4), true);
+            }
+            static::hl('aMem: ' . memory_get_peak_usage(), true);
+        }
+        $error = error_get_last() ?? [];
+        if($error){
+            error_log($error['file'].'#'.$error['line'].','.$error['message']);
+        }
+    }
+    // wrapper for echo
+    static function ech($x=''){
+        static $t;if(!$t){
+            static::conf(['firstEcho'=>debug_backtrace(-2)]);
+        }$t=1;
+        if(is_array($x))$x=json_encode($x);
+        echo $x;
+    }
+
+    static function finishRequest(){
+        static::sendPerfHeaders();
+        if(isset(static::$data['buffer']) && static::$data['buffer']){
+            echo static::$data['buffer'];
+            static::$data['buffer']='';
+        }
+        if (ob_get_level()) {// ob_start();?
+            ob_end_flush();
+        }
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        }
+        //then do other things
+    }
+
+    static function die($x=''){
+        if($x)static::buffer($x);
+        static::finishRequest();
+    }
+
+    //always called at the end (99), can be cumulated until one of them calls die or exit within
+    static function shutdown(){
+        static::finishRequest();
+        if(session_status() !== PHP_SESSION_ACTIVE){
+            session_write_close();
+        }
+    }
+
+    static function autoloader($name=null){
+        static $loaded;
+        if (is_array($loaded) and in_array($name, $loaded)) {
+            return 1;
+        }
+
+        $x = explode('\\', $name);
+        $paths = [static::$dr . end($x) . '.php', __DIR__ . '/classes/' . end($x) . '.php'];
+        //echo json_encode($paths);
+        foreach ($paths as $f) {
+            if (is_file($f)) {
+                require_once $f;
+                $loaded[] = $name;
+                return true;
+            }
+        }
+    }
 }
 
 fun::init();

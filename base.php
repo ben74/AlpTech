@@ -207,7 +207,7 @@ $a=fun::i(['k1'=>'v1','k2'=>'v2'])->set(['k3'=>'v3','k4'=>'v4']);
             $_ENV['_err']['static class method not found'][]=static::gc().'::'.$a;
             return;
         }
-        return $i->{$a}($b);#[0]
+        return $i->{$a}($b);
         #set singleton value
     }
 
