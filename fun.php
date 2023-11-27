@@ -3,12 +3,12 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = ['buffer'=>''], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
+    static $cidrs=[],$shutdownsCallbacks = [],$statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = ['buffer'=>''], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
         'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/']
         ,'redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
-        if(!isset($x) || !$x)return;
+        if(!isset($x) || !$x)return static::$data;
         elseif(is_array($x)){
             static::$data=array_merge(static::$data,$x);
         }elseif(isset(static::$data[$x])){
@@ -36,7 +36,7 @@ class fun /* extends base */
     {
         if (!$lp) {
             $lp = static::getConf('logs');
-        }
+        }// todo : cgi-bin
         if (!$url) {
             $url = $_SERVER['REQUEST_URI'];
             if (preg_match('~accesson.php~i', $url, $m)) {
@@ -55,14 +55,14 @@ class fun /* extends base */
         if ($url) {
             $x = static::injectionPattern($url);#check the uri along with query string .. avoiding injection via rewriting within where like requests ..
             if ($x) {
-                return 'injection pattern ' . $x . ' in url ' . $url;#and querystring
+                return 'injection pattern ' . $x . ' in url ' . $url . '#' . __LINE__;#and querystring
             }
         }
 
         if ($rawBody) {
             $x = static::injectionPattern($rawBody, 'rawbody');#check the uri alondg with query string
             if ($x) {
-                return 'injection pattern ' . $x . ' in rawBody';
+                return 'injection pattern ' . $x . ' in rawBody #' . __LINE__;
             }
         }
 
@@ -73,11 +73,11 @@ class fun /* extends base */
                 }#skip those
                 $x = static::injectionPattern($v);
                 if ($x) {
-                    return 'injection pattern k:' . $x . ' in ' . $v;
+                    return 'injection pattern k:' . $x . ' in ' . $v . '#' . __LINE__;
                 }
                 $x = static::injectionPattern($k);
                 if ($x) {
-                    return 'injection pattern v:' . $x . ' in ' . $k;
+                    return 'injection pattern v:' . $x . ' in ' . $k . '#' . __LINE__;
                 }
             }
         }
@@ -85,10 +85,10 @@ class fun /* extends base */
         if (isset($files) and $files) {
             $json = json_encode($files);
             if (preg_match('~"name":"[^\"]+\.php[^\"]*"~i', $json, $m)) {#way much more simpler but wont work for more complex ..
-                return 'file upload: ' . $m[0];
+                return 'file upload php: ' . $m[0] . '#' . __LINE__;
             }
             if (preg_match('~":"[^\"]+\.php[^\"]*"~i', $json, $m)) {
-                return 'complex nested file upload: ' . $m[0];
+                return 'complex nested file upload with php: ' . $m[0] . '#' . __LINE__;
             }/*
             $foundUploads = static::searchInArrayDepths($files, ['name'], '~\.php~');
             if ($foundUploads) {
@@ -170,15 +170,20 @@ class fun /* extends base */
             echo"\nHeader:$a $b $c";
             return;
         }
-        \header($a, $b, $c);
+        if (!$c) {
+            \header($a, $b);
+        } else {
+            \header($a, $b, $c);
+        }
     }
 
-    static function r302($x = '', $virtual = 0)
+    static function r302($x = '', $virtual = 0, $code = 302)
     {
         if ($virtual) {
-            return "r302::$x";
+            return "r302::$x";//
         }
-        static::hl('Location: ' . $x, 1, 302);
+        static::$statusCode=$code;
+        static::hl('Location: ' . $x, true, $code);
         static::_die();
     }
 
@@ -706,8 +711,9 @@ class fun /* extends base */
             }
 
             $f = __DIR__ . '/conf.php';
-            if (!is_file($f)) {
-                copy(__DIR__ . '/default.conf.php', $f);#is setup
+            $f2=__DIR__ . '/default.conf.php';
+            if (!is_file($f) && is_file($f2)) {
+                copy($f2, $f);#is setup
             }
             $new = require_once $f;
             $conf += $new;
@@ -1584,7 +1590,7 @@ class fun /* extends base */
             $reproductible = json_encode([$res, $sql]);
             $a = 1;
         }
-        if (conf('sqlStats')) {
+        if (static::conf('sqlStats')) {
             $_ENV['_sql'][$nbr . ' : ' . $sql] = $res;
             if (isset($_ENV['_sqlT'])) {
                 $_ENV['_sqlT'][$sql] = microtime(true) - $start;
@@ -2913,21 +2919,23 @@ class fun /* extends base */
     static function postInit(){
         foreach(static::$defaults['autoloadPaths'] as &$v){$v=str_replace('#DR#',static::$dr,$v);}unset($v);
     }
-    static function init()
+
+    static function init($overrides = [])
     {
+        static $t;if($t)return null;$t=true;
+        static::$data['started'] = microtime(true);
         if (isset($GLOBALS['argv'])) {
             $a = $GLOBALS['argv'];
             $values = [];
             $values['local'] = static::$local = 1;
-            $values['ip'] = static::$ip = '127.0.0.1';
+            $_SERVER['SERVER_ADDR'] = $_SERVER['REMOTE_ADDR'] = $GLOBALS['ip'] = $values['ip'] = static::$ip = '127.0.0.1';
             $values['h'] = $values['cli'] = $values['env'] = static::$env = static::$h = static::$ext = 'cli';
             $script = array_shift($a);
             if ($script && strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
-            $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
-            $values['dr'] = static::$dr = trim(\dirname(static::$u).'/') . '/';
-            static::postInit();
+            $GLOBALS['u'] = $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
+            $GLOBALS['dr'] = $values['dr'] = static::$dr = trim(\dirname(static::$u) . '/') . '/';
             $values['q'] = static::$q = implode(',', $a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
             $values['args'] = [];
             foreach ($a as $v) {
@@ -2941,22 +2949,62 @@ class fun /* extends base */
                     $values['args'][$m[1]] = static::$args[$m[1]] = $_GET[$m[1]] = $m[2];
                 }
             }
-            static::conf(array_merge(static::$defaults, $values['args'], $values));
+            static::conf(array_merge(static::$defaults, $values['args'], $values, $overrides));
+            static::postInit();
 
         }else{// http forwarded request
-            static::$u = $u = $_SERVER['REQUEST_URI'];
-            [$uq, $qs] = explode('?', $u);
-            static::$q = $qs;
+            if('neutralize and replace some params'){
+                $rep = ['%2f'=>''];// path traversal .. authorize simple slash / for js=y/plop.min.js
+                foreach ($rep as $a=>$b) {
+                    if (stripos($_SERVER['REQUEST_URI'], $a) !== FALSE) {
+                        $_SERVER['REQUEST_URI'] = str_ireplace($a,$b,$_SERVER['REQUEST_URI']);
+                    }
+                }
+            }
+
+            $GLOBALS['u'] = static::$u = $u = $_SERVER['REQUEST_URI'];
+            $x = explode('?', $u);
+            $uq=array_shift($x);
+            if($x)$qs=array_shift($x);
+            $GLOBALS['q'] = static::$q = $qs ?? '';
             static::$env = 'http';
-            static::$uq = trim($uq, '/');
+            $GLOBALS['uq'] =static::$uq = trim($uq, '/');
             static::$ext = (strpos($u, '.') && ($x = explode('.', $u))) ? strtolower(end($x)) : '';
 
-            static::$ip = $_SERVER['REMOTE_ADDR'];
-            static::$h = $h = $_SERVER['HTTP_HOST'];
+
+            $overrides['gip']['ip']=$_SERVER['REMOTE_ADDR'];// static::conf('gip');
+            if(isset($_SERVER['HTTP_X_FORWARDED_FOR']))$overrides['gip']['forw']=$_SERVER['HTTP_X_FORWARDED_FOR'];
+            if(isset($_SERVER['HTTP_CF_CONNECTING_IP']))$overrides['gip']['cf']=$_SERVER['HTTP_CF_CONNECTING_IP'];
+// ip might be forwarded or proxied ....
+            $_SERVER['REMOTE_ADDR'] = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'];
+            if (strpos($_SERVER['REMOTE_ADDR'], ',')) {
+                $x = explode(',', $_SERVER['REMOTE_ADDR']);
+                $_SERVER['REMOTE_ADDR'] = trim($x[0]);
+            }
+// si passée via proxy alors on pourra bloquer ici en php
+            if(isset($_SERVER['HTTP_CF_CONNECTING_IP'])){
+                $_SERVER['REMOTE_ADDR'] = $_SERVER['HTTP_CF_CONNECTING_IP'];
+            }
+
+// avoid possible hostname crafted injections
+            $_SERVER['HTTP_HOST'] = preg_replace("~[^a-z0-9\-.:]~", '', strtolower($_SERVER['HTTP_HOST']));
+
+            $GLOBALS['ip'] = static::$ip = $_SERVER['REMOTE_ADDR'];
+            $GLOBALS['h'] = static::$h = $h = $_SERVER['HTTP_HOST'];
             static::$local = (strpos($h, '127.0.0.1') !== FALSE or substr($h, 0, 4) == '192.');
-            static::$dr = $_SERVER['DOCUMENT_ROOT'] ? rtrim($_SERVER['DOCUMENT_ROOT'], '/').'/' : null;
+            $GLOBALS['dr']=static::$dr = $_SERVER['DOCUMENT_ROOT'] ? rtrim($_SERVER['DOCUMENT_ROOT'], '/').'/' : null;
+// todo: //$_SERVER['HTTP_X_FORWARDED_PROTO']=='https' or strpos($_SERVER['HTTP_CF_VISITOR'], 'https')
+            $_SERVER['REQUEST_SCHEME']=$_SERVER['HTTP_X_FORWARDED_PROTO']??$_SERVER['REQUEST_SCHEME'];
+            if($_SERVER['REQUEST_SCHEME']=='https')$_SERVER['HTTPS']='on';
+            $_SERVER['SERVER_PORT'] = $_SERVER['SERVER_PORT'] ?? 80;
+
+            static::$cidrs = array_unique(explode(',',
+                /* internal */'127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'                /*ggbot*/ .',64.233.160.0/19,66.102.0.0/20,66.249.80.0/20,72.14.192.0/18,74.125.0.0/16,108.177.8.0/21,173.194.0.0/16,209.85.128.0/17,216.58.192.0/19,216.239.32.0/19' .
+                /*ggbot2.json*/ ',192.178.5.0/27,34.100.182.96/28,34.101.50.144/28,34.118.254.0/28,34.118.66.0/28,34.126.178.96/28,34.146.150.144/28,34.147.110.144/28,34.151.74.144/28,34.152.50.64/28,34.154.114.144/28,34.155.98.32/28,34.165.18.176/28,34.175.160.64/28,34.176.130.16/28,34.22.85.0/27,34.64.82.64/28,34.65.242.112/28,34.80.50.80/28,34.88.194.0/28,34.89.10.80/28,34.89.198.80/28,34.96.162.48/28,35.247.243.240/28,66.249.64.0/27,66.249.64.128/27,66.249.64.160/27,66.249.64.192/27,66.249.64.224/27,66.249.64.32/27,66.249.64.64/27,66.249.64.96/27,66.249.65.0/27,66.249.65.160/27,66.249.65.192/27,66.249.65.224/27,66.249.65.32/27,66.249.65.64/27,66.249.65.96/27,66.249.66.0/27,66.249.66.128/27,66.249.66.160/27,66.249.66.192/27,66.249.66.32/27,66.249.66.64/27,66.249.66.96/27,66.249.68.0/27,66.249.68.32/27,66.249.68.64/27,66.249.69.0/27,66.249.69.128/27,66.249.69.160/27,66.249.69.192/27,66.249.69.224/27,66.249.69.32/27,66.249.69.64/27,66.249.69.96/27,66.249.70.0/27,66.249.70.128/27,66.249.70.160/27,66.249.70.192/27,66.249.70.224/27,66.249.70.32/27,66.249.70.64/27,66.249.70.96/27,66.249.71.0/27,66.249.71.128/27,66.249.71.160/27,66.249.71.192/27,66.249.71.224/27,66.249.71.32/27,66.249.71.64/27,66.249.71.96/27,66.249.72.0/27,66.249.72.128/27,66.249.72.160/27,66.249.72.192/27,66.249.72.224/27,66.249.72.32/27,66.249.72.64/27,66.249.72.96/27,66.249.73.0/27,66.249.73.128/27,66.249.73.160/27,66.249.73.192/27,66.249.73.224/27,66.249.73.32/27,66.249.73.64/27,66.249.73.96/27,66.249.74.0/27,66.249.74.128/27,66.249.74.32/27,66.249.74.64/27,66.249.74.96/27,66.249.75.0/27,66.249.75.128/27,66.249.75.160/27,66.249.75.192/27,66.249.75.224/27,66.249.75.32/27,66.249.75.64/27,66.249.75.96/27,66.249.76.0/27,66.249.76.128/27,66.249.76.160/27,66.249.76.192/27,66.249.76.224/27,66.249.76.32/27,66.249.76.64/27,66.249.76.96/27,66.249.77.0/27,66.249.77.128/27,66.249.77.160/27,66.249.77.192/27,66.249.77.224/27,66.249.77.32/27,66.249.77.64/27,66.249.77.96/27,66.249.78.0/27,66.249.78.32/27,66.249.79.0/27,66.249.79.128/27,66.249.79.160/27,66.249.79.192/27,66.249.79.224/27,66.249.79.32/27,66.249.79.64/27,66.249.79.96/27' .
+                /*bingbot*/ ',157.55.39.0/24,207.46.13.0/24,40.77.167.0/24,13.66.139.0/24,13.66.144.0/24,52.167.144.0/24,13.67.10.16/28,13.69.66.240/28,13.71.172.224/28,139.217.52.0/28,191.233.204.224/28,20.36.108.32/28,20.43.120.16/28,40.79.131.208/28,40.79.186.176/28,52.231.148.0/28,20.79.107.240/28,51.105.67.0/28,20.125.163.80/28,40.77.188.0/22,65.55.210.0/24,199.30.24.0/23,40.77.202.0/24,40.77.139.0/25,20.74.197.0/28,20.15.133.160/27'));
+
+            static::conf(array_merge($_GET, static::$defaults, $overrides));
             static::postInit();
-            static::conf(array_merge($_GET, static::$defaults));
         }
 
         spl_autoload_register([__CLASS__,'autoloader'],true,true);//above others for custom overrides
@@ -3149,11 +3197,12 @@ class fun /* extends base */
         return $decrypted;
     }
 
-// todo redis
+// todo if no redis available put data to json Files ???
     static function rc(){
         if(static::conf('rc'))return static::conf('rc');
         $r = new \redis();
         $r->connect(static::conf('redisHost'), static::conf('redisPort'));
+        // $r->isConnected()
         if(static::conf('redisPass')){$r->auth(static::conf('redisPass'));}
         static::conf(['rc'=>$r]);
         return $r;
@@ -3185,61 +3234,6 @@ class fun /* extends base */
         return static::rc()->blpop($k);
     }
 //rd,rk ...
-    static function buffer($x=''){
-        if(is_array($x) or is_object($x))$x=json_encode($x);
-        static::$data['buffer'].=$x;
-    }
-
-    static function sendPerfHeaders(){
-        static $t;if($t)return;$t=1;
-        if (!headers_sent($file, $line) or static::iscli()) {
-            if (isset(static::$data['started'])) {
-                static::hl('aShutdowns: ' . round(microtime(true) - static::$data['started'], 4), true);
-            }
-            static::hl('aMem: ' . memory_get_peak_usage(), true);
-        }
-        $error = error_get_last() ?? [];
-        if($error){
-            error_log($error['file'].'#'.$error['line'].','.$error['message']);
-        }
-    }
-    // wrapper for echo
-    static function ech($x=''){
-        static $t;if(!$t){
-            static::conf(['firstEcho'=>debug_backtrace(-2)]);
-        }$t=1;
-        if(is_array($x))$x=json_encode($x);
-        echo $x;
-    }
-
-    static function finishRequest(){
-        static::sendPerfHeaders();
-        if(isset(static::$data['buffer']) && static::$data['buffer']){
-            echo static::$data['buffer'];
-            static::$data['buffer']='';
-        }
-        if (ob_get_level()) {// ob_start();?
-            ob_end_flush();
-        }
-        if (function_exists('fastcgi_finish_request')) {
-            fastcgi_finish_request();
-        }
-        //then do other things
-    }
-
-    static function die($x=''){
-        if($x)static::buffer($x);
-        static::finishRequest();
-    }
-
-    //always called at the end (99), can be cumulated until one of them calls die or exit within
-    static function shutdown(){
-        static::finishRequest();
-        if(session_status() !== PHP_SESSION_ACTIVE){
-            session_write_close();
-        }
-    }
-
     static function autoloader($name=null){
         static $loaded;
         if (is_array($loaded) and in_array($name, $loaded)) {
@@ -3272,8 +3266,216 @@ class fun /* extends base */
                 }
             }
         }
+        return false;
     }
+
+
+    static function buffer($x = '')
+    {
+        if(is_array($x) or is_object($x))$x=json_encode($x);
+        static::$data['buffer'].=$x;
+    }
+
+    static function sendPerfHeaders(){
+        static $t;if($t)return;$t=1;
+        if (!headers_sent($file, $line) or static::iscli()) {
+            if (isset(static::$data['started'])) {
+                static::hl('aShutdowns: ' . round(microtime(true) - static::$data['started'], 4));
+            }
+            static::hl('aMem: ' . memory_get_peak_usage());
+        }
+        $error = error_get_last() ?? [];
+        if($error){
+            error_log($error['file'].'#'.$error['line'].','.$error['message']);
+        }
+    }
+    // wrapper for echo
+    static function ech($x=''){
+        static $t;if(!$t){
+            static::conf(['firstEcho'=>debug_backtrace(-2)]);
+        }$t=1;
+        if(is_array($x))$x=json_encode($x);
+        echo $x;
+    }
+
+    static function finishRequest(){
+        if(session_status() !== PHP_SESSION_ACTIVE){
+            session_write_close();
+        }
+        static::sendPerfHeaders();
+        if(isset(static::$data['buffer']) && static::$data['buffer']){
+            echo static::$data['buffer'];
+            static::$data['buffer']='';
+        }
+        if (ob_get_level()) {// ob_start();?
+            ob_end_flush();
+        }
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        }
+        //then do other things
+    }
+
+    static function die($x=''){
+        if($x)static::buffer($x);
+        static::finishRequest();
+    }
+
+    //always called at the end (99), can be cumulated until one of them calls die or exit within
+    static function shutdown($a){
+        static::finishRequest();
+        foreach(static::$shutdownsCallbacks as $callback){
+            $callback();
+        }
+    }
+
+    static function sb($cb){
+        static::$shutdownsCallbacks[] = $cb;
+    }
+
+    static function obstop(){
+        static $t;if($t)return;$t=1;
+        if(!isset($GLOBALS['argv'])){// php_sapi_name() !== 'cli'
+            if (isset($_ENV['args']) && strpos($_ENV['args'], ',r302') === false && 'clear Redirection Cookies on 200 header okay' && isset($_COOKIE['redirects'])) {
+                static::delCookie('redirects');
+            }
+            static::sendPerfHeaders();
+            if (ob_get_level()) {
+                ob_end_flush();
+            }
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+            }
+        }
+    }
+
+    static function delCookie($a){
+        return setCookie($x, null, -1, '/');
+    }
+
+    static function getCookie($k)
+    {
+        $v = null;
+        if (isset($_COOKIE[$k])) {
+            return $_COOKIE[$k];
+        }
+        return $v;
+    }
+
+    static function destroyCookieMatching($xs)
+    {
+        if (!is_array($xs)) $xs = [$xs];
+        foreach ($xs as $x) {
+            foreach ($_COOKIE as $k => $v) {
+                if (strpos($k, $x) !== FALSE) {
+                    static::destroyCookie($k);
+                }
+            }
+        }
+    }
+
+    /* Cookie names cannot contain any of the following =,; \t\r\n\013\014 */
+    static function setCookie($k, $v, $t = null, $p = '/')
+    {
+        if (!$t) {
+            $t = strtotime('+365 days');
+        }
+        setCookie($k, $v, $t, $p);
+    }
+
+    static function toHttps(){
+        if($_SERVER['REQUEST_SCHEME']!='https'){
+            return static::r302('https://' . static::$h . '/' . static::$u);
+        }
+    }
+
+    static function cidr_match($ip, $range)
+    {
+        list ($subnet, $bits) = explode('/', $range);
+        if ($bits === null) {
+            $bits = 32;
+        }
+        $ip = ip2long($ip);
+        $subnet = ip2long($subnet);
+        $mask = -1 << (32 - $bits);
+        $subnet &= $mask; // nb: in case the supplied subnet wasn't correctly aligned
+        return ($ip & $mask) == $subnet;
+    }
+
+    static function ge($k, $envFile)
+    {
+        static $t = [];
+        if (!isset($t[$envFile])) {
+            if (!is_file($envFile)) {
+                $t[$envFile] = [];
+            } else {
+                // todo: home might not exists
+                $b = '/home/' . basename($envFile) . '--.php';
+                if (is_file($b) && filemtime($b) > filemtime($envFile)) {
+                    $t[$envFile] = require_once $b;
+                } else {
+                    $t[$envFile] = @json_decode(file_get_contents($envFile), true);
+                    file_put_contents($b, '<?php return ' . var_export($t[$envFile], true) . ';');
+                }
+            }
+        }
+        $current = $t[$envFile];
+        if (strpos($k, '.')) {
+            $x = explode('.', $k);
+            while ($x) {
+                $k2 = array_shift($x);
+                // not found ? return parent :)
+                if (!isset($current[$k2])){
+                    return $current;
+                }
+                $current = $current[$k2];
+            }
+        }
+        return $current[$k] ?? null;
+    }
+
+    static function rgg($k)
+    {
+        $r=static::rc();
+        $type = $r->type($k);
+        switch ($type) {
+            case 1;
+                return $r->get($k);break;
+            case 5;
+                return $r->hgetall($k);break;
+            case 3;
+                return $r->lrange($k,0,-1);break;
+            case 2;
+                return $r->sMembers($k);break;//set
+            case 4;
+                return $r->zRange($k, 0, -1);break;//zset
+            default:
+                return ['?'];
+                break;
+        }
+    }
+
+    static function ipok($ip)
+    {
+        foreach (static::$cidrs as $cidr) {
+            if(static::cidr_match($ip, $cidr)) {
+                return true;
+            }
+        }
+    }
+/*
+wrapper open and close session for long long pages which locks the session for n minutes, then a javascript dependency waits for the lock to be release for simply reading then
+todo: to be replaced with $r->set('session_id:key',$value,expire=3600)
+ */
+    static function sesset($k,$v){
+        @session_start();
+        $_SESSION[$k]=$v;
+        session_write_close();
+    }
+    // todo: virtual session support : using redis or short session_write_closes ???
 }
 
-fun::init();
+if(!isset($custom)){
+    fun::init();
+}
 return; ?>
