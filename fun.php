@@ -4,7 +4,7 @@ namespace Alptech\Wip;
 class fun /* extends base */
 {
     static $cidrs=[],$shutdownsCallbacks = [],$statusCode = 200, $connection, $ext, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $data = ['buffer'=>''], $conf = [], $args = [], $_shared = [], $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
-        'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/']
+        'sessions2redis'=>false,'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/']
         ,'redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
     static function conf($x=null){// fun::conf(['a'=>1]);
@@ -73,11 +73,11 @@ class fun /* extends base */
                 }#skip those
                 $x = static::injectionPattern($v);
                 if ($x) {
-                    return 'injection pattern k:' . $x . ' in ' . $v . '#' . __LINE__;
+                    return 'injection pattern ' . $x . '#' . __LINE__. ' in value : ' . substr(str_replace("\s",' ',strip_tags($v)),0,255);
                 }
                 $x = static::injectionPattern($k);
                 if ($x) {
-                    return 'injection pattern v:' . $x . ' in ' . $k . '#' . __LINE__;
+                    return 'injection pattern : ' . $x . '#' . __LINE__. ' in key : ' . str_replace("\s",' ',strip_tags($k));
                 }
             }
         }
@@ -167,9 +167,9 @@ class fun /* extends base */
     static function hl($a = '', $b = true, $c = null)
     {
         if(static::iscli()){
-            echo"\nHeader:$a $b $c";
             return;
         }
+        //$b=get_required_files();$a=headers_list();$file=$line=0;\headers_sent($file,$line);// trying to catch a redirect
         if (!$c) {
             \header($a, $b);
         } else {
@@ -177,12 +177,15 @@ class fun /* extends base */
         }
     }
 
+    static function r301($x = ''){
+        return static::r302($x,0,301);
+    }
     static function r302($x = '', $virtual = 0, $code = 302)
     {
         if ($virtual) {
             return "r302::$x";//
         }
-        static::$statusCode=$code;
+        static::$statusCode = $code;
         static::hl('Location: ' . $x, true, $code);
         static::_die();
     }
@@ -266,7 +269,7 @@ class fun /* extends base */
             $f = $_ENV['lp'] . $f;
         }
         $bt = static::bt(1);
-        io::fpc($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
+        static::fpc($f, "\n\n}" . date('YmdHis') . ' ' . $_ENV['h'] . '/' . $_ENV['u'] . "{" . print_r(compact('x', 'bt'), 1) . json_encode(array_filter(['post' => $_POST, 'get' => $_GET, 'cook' => $_COOKIE, 'ip' => $_ENV['IP']]), 1) . "\n\n", 8);
     }
 
     static function arrayContains($array, $contains = 0, $lv = 0, $bk = [])
@@ -1342,9 +1345,9 @@ class fun /* extends base */
     {
         $migrated = __DIR__ . '/migrations/migrated.log';
         if (!is_file($migrated)) {
-            io::FPCJ($migrated, []);
+            static::FPCJ($migrated, []);
         }
-        $done = io::fgcj($migrated);
+        $done = static::fgcj($migrated);
         $d = __DIR__ . '/migrations/';
         $migrations = array_merge(glob($d . '*.sql'), glob($d . '*.php'));
         foreach ($migrations as &$f) {
@@ -1358,7 +1361,7 @@ class fun /* extends base */
                 $basename = basename($f);
                 $ext = static::getExtension($f);
                 if ($ext == 'sql') {
-                    $x = explode("\n", io::fgc($d . $f));
+                    $x = explode("\n", static::fgc($d . $f));
                     foreach ($x as $__line => $v) {
                         $v = rtrim($v, "\t\s\n\r;- ");
                         if (strlen($v) < 10) {
@@ -1377,9 +1380,9 @@ class fun /* extends base */
                 $done[] = $basename;
                 $a = 1;
             }
-            io::FPCJ($migrated, $done);
+            static::FPCJ($migrated, $done);
         }
-        #io::fpc(__DIR__.'/migrations/done.lock',);
+        #static::fpc(__DIR__.'/migrations/done.lock',);
     }
 
 // $conn=compact('h,u,p,db,names']); static::sql2($conn,$sql,[]);
@@ -1993,6 +1996,7 @@ class fun /* extends base */
         }
     }
 
+// substitute to session start and use redis for keys instead !
     static function nocache()
     {
         static::hl("Expires: on, 23 Feb 1983 19:37:15 GMT");
@@ -2611,26 +2615,6 @@ class fun /* extends base */
         return fgc($f);
     }
 
-    static function rs($k, $v)
-    {
-        return static::sset($k, $v);
-    }
-
-    static function rk($k = '*')
-    {
-        return static::rc()->keys($k);
-    }
-
-    static function rg($k)
-    {
-        return static::rc()->sget($k);
-    }
-
-    static function rd($k)
-    {
-        return static::rc()->del($k);
-    }
-
     static function sendPhpMail($to, $sub, $msg, $smtp, $from, $pass, $pk, $dkPass, $domain, $log = null, $smtpPort = 465, $dkSel = 'dk1024-2012', $alt='--nohtml,sorry')
     {
         if (!\is_file($pk)) {
@@ -2720,30 +2704,64 @@ class fun /* extends base */
         return $res;
     }
 
-    /**
-     * session_start wrapper returns session id
-     * @return void
-     */
-    static function ss()
-    {
-        if (session_status() === PHP_SESSION_NONE) {session_start();}
-        return session_id();
-    }
 
     /**
     * SimpleLogin
     */
-    static function simpleLogin($usersPasses){
-        static::ss();
-        if(isset($_SESSION['logged']) && $_SESSION['logged'])return $_SESSION['logged'];
-        foreach($usersPasses as $user=>$pass) {
-            if (isset($_COOKIE['log']) and $_COOKIE['log'] == md5($user . $pass)) { $_SESSION['logged'] = $user;return $user;}
-            elseif ($_POST['u'] == $user and $_POST['p'] == $pass ) {
+    static function simpleLogin($usersPasses, $login = null, $pass = null)
+    {
+        if(static::iscli())return 'cli';
+        $rsid=static::ss();// sets RSID or gets IT
+        $a = static::sesget('logged');
+        if ($a) return $a;
+
+        if ($login and $pass) {//http basic auth
+            if (isset($usersPasses[$login]) && $usersPasses[$login] == $pass) {
                 setcookie('log', md5($user . $pass), 3600 * 24 * 365 * 10, '/');
-                $_SESSION['logged'] = $user;return $user;
+                static::sesset('logged', $user);
+                return $user;
             }
         }
-        die("<center>login:<br><form method=post><input name=u placeholder=Username><br><input name=p placeholder=password type=password><br><input type=submit value='Authenticate!' style='cursor:pointer'></form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
+
+        $honeypots=explode(',','login,password,email,zip,message');
+        foreach($honeypots as $key){
+            if(isset($_POST[$key]) && $_POST['key']){
+                static::blockon();// honeypot
+            }
+        }
+
+        $salt = crc32(date('YmdH'));
+
+        if (isset($_POST['u' . $salt]) && isset($_POST['p' . $salt])
+                and isset($usersPasses[$_POST['u' . $salt]])
+                and $_POST['p' . $salt] == $usersPasses[$_POST['u' . $salt]] ) {
+            setcookie('log', md5($user . $pass), 3600 * 24 * 365 * 10, '/');
+            static::sesset('logged', $user);
+            return $user;
+        } elseif(isset($_POST) && $_POST){// does not match anything at all ..
+            error_log('simplelogin:'.json_encode($_POST));
+            //static::blockon();//'attempts:'.$ip
+        }
+
+        if(static::getCookie('log')) {
+            foreach ($usersPasses as $user => $pass) {
+                if (static::getCookie('log') == md5($user . $pass)) {
+                    static::sesset('logged', $user);
+                    return $user;
+                }
+            }// RSID +rotation des posts + honeypot
+        }
+
+
+        die("<center>login:<br><form method=post>
+        <input name='u".$salt."' placeholder=Username>
+        <br><input name='p".$salt."' placeholder=password type=password>
+        <br><input type=submit value='Authenticate!' style='cursor:pointer'>
+
+        <input type=hidden class=s name=RSID value=\"".$rsid."\">
+
+        <input type=hidden class=s name=email><input type=hidden class=s name=login><input type=hidden class=s name=password type=password><input type=hidden class=s name=zip><input type=hidden class=s name=message>
+        </form><style>input{width:90vw;} *{font-size:10vh} body{font:10vh 'Avenir Next',sans-serif;background:#000;color:#FFF;}</style>");
     }
 
     static function str($x,$lv=0){
@@ -2928,15 +2946,16 @@ class fun /* extends base */
             $a = $GLOBALS['argv'];
             $values = [];
             $values['local'] = static::$local = 1;
-            $_SERVER['SERVER_ADDR'] = $_SERVER['REMOTE_ADDR'] = $GLOBALS['ip'] = $values['ip'] = static::$ip = '127.0.0.1';
+            $GLOBALS['ip'] = $_SERVER['SERVER_ADDR'] = $_SERVER['REMOTE_ADDR'] =  $values['ip'] = static::$ip = '127.0.0.1';
             $values['h'] = $values['cli'] = $values['env'] = static::$env = static::$h = static::$ext = 'cli';
             $script = array_shift($a);
             if ($script && strpos($script, '/') === FALSE){
                 $script = \getcwd().'/'.$script;
             }
-            $GLOBALS['u'] = $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
+
+            $GLOBALS['u'] = $_SERVER['REQUEST_URI'] = $values['uq'] = $values['u'] = static::$uq = static::$u = $script;//  $_SERVER['PWD']
             $GLOBALS['dr'] = $values['dr'] = static::$dr = trim(\dirname(static::$u) . '/') . '/';
-            $values['q'] = static::$q = implode(',', $a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
+            $GLOBALS['q'] =$values['q'] = static::$q = implode(',', $a);// php '{"d":{"e":[4,5]}}' a=1 b=2 --c=3;
             $values['args'] = [];
             foreach ($a as $v) {
                 if (($decoded = static::jsonValid($v)) && $decoded) {
@@ -2970,7 +2989,7 @@ class fun /* extends base */
             static::$env = 'http';
             $GLOBALS['uq'] =static::$uq = trim($uq, '/');
             static::$ext = (strpos($u, '.') && ($x = explode('.', $u))) ? strtolower(end($x)) : '';
-
+            $_SERVER['HTTP_USER_AGENT'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
             $overrides['gip']['ip']=$_SERVER['REMOTE_ADDR'];// static::conf('gip');
             if(isset($_SERVER['HTTP_X_FORWARDED_FOR']))$overrides['gip']['forw']=$_SERVER['HTTP_X_FORWARDED_FOR'];
@@ -2998,10 +3017,13 @@ class fun /* extends base */
             if($_SERVER['REQUEST_SCHEME']=='https')$_SERVER['HTTPS']='on';
             $_SERVER['SERVER_PORT'] = $_SERVER['SERVER_PORT'] ?? 80;
 
-            static::$cidrs = array_unique(explode(',',
-                /* internal */'127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'                /*ggbot*/ .',64.233.160.0/19,66.102.0.0/20,66.249.80.0/20,72.14.192.0/18,74.125.0.0/16,108.177.8.0/21,173.194.0.0/16,209.85.128.0/17,216.58.192.0/19,216.239.32.0/19' .
-                /*ggbot2.json*/ ',192.178.5.0/27,34.100.182.96/28,34.101.50.144/28,34.118.254.0/28,34.118.66.0/28,34.126.178.96/28,34.146.150.144/28,34.147.110.144/28,34.151.74.144/28,34.152.50.64/28,34.154.114.144/28,34.155.98.32/28,34.165.18.176/28,34.175.160.64/28,34.176.130.16/28,34.22.85.0/27,34.64.82.64/28,34.65.242.112/28,34.80.50.80/28,34.88.194.0/28,34.89.10.80/28,34.89.198.80/28,34.96.162.48/28,35.247.243.240/28,66.249.64.0/27,66.249.64.128/27,66.249.64.160/27,66.249.64.192/27,66.249.64.224/27,66.249.64.32/27,66.249.64.64/27,66.249.64.96/27,66.249.65.0/27,66.249.65.160/27,66.249.65.192/27,66.249.65.224/27,66.249.65.32/27,66.249.65.64/27,66.249.65.96/27,66.249.66.0/27,66.249.66.128/27,66.249.66.160/27,66.249.66.192/27,66.249.66.32/27,66.249.66.64/27,66.249.66.96/27,66.249.68.0/27,66.249.68.32/27,66.249.68.64/27,66.249.69.0/27,66.249.69.128/27,66.249.69.160/27,66.249.69.192/27,66.249.69.224/27,66.249.69.32/27,66.249.69.64/27,66.249.69.96/27,66.249.70.0/27,66.249.70.128/27,66.249.70.160/27,66.249.70.192/27,66.249.70.224/27,66.249.70.32/27,66.249.70.64/27,66.249.70.96/27,66.249.71.0/27,66.249.71.128/27,66.249.71.160/27,66.249.71.192/27,66.249.71.224/27,66.249.71.32/27,66.249.71.64/27,66.249.71.96/27,66.249.72.0/27,66.249.72.128/27,66.249.72.160/27,66.249.72.192/27,66.249.72.224/27,66.249.72.32/27,66.249.72.64/27,66.249.72.96/27,66.249.73.0/27,66.249.73.128/27,66.249.73.160/27,66.249.73.192/27,66.249.73.224/27,66.249.73.32/27,66.249.73.64/27,66.249.73.96/27,66.249.74.0/27,66.249.74.128/27,66.249.74.32/27,66.249.74.64/27,66.249.74.96/27,66.249.75.0/27,66.249.75.128/27,66.249.75.160/27,66.249.75.192/27,66.249.75.224/27,66.249.75.32/27,66.249.75.64/27,66.249.75.96/27,66.249.76.0/27,66.249.76.128/27,66.249.76.160/27,66.249.76.192/27,66.249.76.224/27,66.249.76.32/27,66.249.76.64/27,66.249.76.96/27,66.249.77.0/27,66.249.77.128/27,66.249.77.160/27,66.249.77.192/27,66.249.77.224/27,66.249.77.32/27,66.249.77.64/27,66.249.77.96/27,66.249.78.0/27,66.249.78.32/27,66.249.79.0/27,66.249.79.128/27,66.249.79.160/27,66.249.79.192/27,66.249.79.224/27,66.249.79.32/27,66.249.79.64/27,66.249.79.96/27' .
-                /*bingbot*/ ',157.55.39.0/24,207.46.13.0/24,40.77.167.0/24,13.66.139.0/24,13.66.144.0/24,52.167.144.0/24,13.67.10.16/28,13.69.66.240/28,13.71.172.224/28,139.217.52.0/28,191.233.204.224/28,20.36.108.32/28,20.43.120.16/28,40.79.131.208/28,40.79.186.176/28,52.231.148.0/28,20.79.107.240/28,51.105.67.0/28,20.125.163.80/28,40.77.188.0/22,65.55.210.0/24,199.30.24.0/23,40.77.202.0/24,40.77.139.0/25,20.74.197.0/28,20.15.133.160/27'));
+static::$cidrs = array_unique(explode(',',
+/* internal */'127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,'.
+/*ggbot*/ '64.233.160.0/19,66.102.0.0/20,66.249.80.0/20,72.14.192.0/18,74.125.0.0/16,108.177.8.0/21,173.194.0.0/16,209.85.128.0/17,216.58.192.0/19,216.239.32.0/19,' .
+/*ggbot2.json*/ '192.178.5.0/27,34.100.182.96/28,34.101.50.144/28,34.118.254.0/28,34.118.66.0/28,34.126.178.96/28,34.146.150.144/28,34.147.110.144/28,34.151.74.144/28,34.152.50.64/28,34.154.114.144/28,34.155.98.32/28,34.165.18.176/28,34.175.160.64/28,34.176.130.16/28,34.22.85.0/27,34.64.82.64/28,34.65.242.112/28,34.80.50.80/28,34.88.194.0/28,34.89.10.80/28,34.89.198.80/28,34.96.162.48/28,35.247.243.240/28,66.249.64.0/27,66.249.64.128/27,66.249.64.160/27,66.249.64.192/27,66.249.64.224/27,66.249.64.32/27,66.249.64.64/27,66.249.64.96/27,66.249.65.0/27,66.249.65.160/27,66.249.65.192/27,66.249.65.224/27,66.249.65.32/27,66.249.65.64/27,66.249.65.96/27,66.249.66.0/27,66.249.66.128/27,66.249.66.160/27,66.249.66.192/27,66.249.66.32/27,66.249.66.64/27,66.249.66.96/27,66.249.68.0/27,66.249.68.32/27,66.249.68.64/27,66.249.69.0/27,66.249.69.128/27,66.249.69.160/27,66.249.69.192/27,66.249.69.224/27,66.249.69.32/27,66.249.69.64/27,66.249.69.96/27,66.249.70.0/27,66.249.70.128/27,66.249.70.160/27,66.249.70.192/27,66.249.70.224/27,66.249.70.32/27,66.249.70.64/27,66.249.70.96/27,66.249.71.0/27,66.249.71.128/27,66.249.71.160/27,66.249.71.192/27,66.249.71.224/27,66.249.71.32/27,66.249.71.64/27,66.249.71.96/27,66.249.72.0/27,66.249.72.128/27,66.249.72.160/27,66.249.72.192/27,66.249.72.224/27,66.249.72.32/27,66.249.72.64/27,66.249.72.96/27,66.249.73.0/27,66.249.73.128/27,66.249.73.160/27,66.249.73.192/27,66.249.73.224/27,66.249.73.32/27,66.249.73.64/27,66.249.73.96/27,66.249.74.0/27,66.249.74.128/27,66.249.74.32/27,66.249.74.64/27,66.249.74.96/27,66.249.75.0/27,66.249.75.128/27,66.249.75.160/27,66.249.75.192/27,66.249.75.224/27,66.249.75.32/27,66.249.75.64/27,66.249.75.96/27,66.249.76.0/27,66.249.76.128/27,66.249.76.160/27,66.249.76.192/27,66.249.76.224/27,66.249.76.32/27,66.249.76.64/27,66.249.76.96/27,66.249.77.0/27,66.249.77.128/27,66.249.77.160/27,66.249.77.192/27,66.249.77.224/27,66.249.77.32/27,66.249.77.64/27,66.249.77.96/27,66.249.78.0/27,66.249.78.32/27,66.249.79.0/27,66.249.79.128/27,66.249.79.160/27,66.249.79.192/27,66.249.79.224/27,66.249.79.32/27,66.249.79.64/27,66.249.79.96/27,' .
+/*bingbot*/ '157.55.39.0/24,207.46.13.0/24,40.77.167.0/24,13.66.139.0/24,13.66.144.0/24,52.167.144.0/24,13.67.10.16/28,13.69.66.240/28,13.71.172.224/28,139.217.52.0/28,191.233.204.224/28,20.36.108.32/28,20.43.120.16/28,40.79.131.208/28,40.79.186.176/28,52.231.148.0/28,20.79.107.240/28,51.105.67.0/28,20.125.163.80/28,40.77.188.0/22,65.55.210.0/24,199.30.24.0/23,40.77.202.0/24,40.77.139.0/25,20.74.197.0/28,20.15.133.160/27,'.
+/*ahrefs:https://help.ahrefs.com/en/articles/78658-what-is-the-list-of-your-ip-ranges*/ '54.36.148.0/24,54.36.149.0/24,195.154.122.0/24,195.154.123.0/24,195.154.126.0/24,195.154.127.0/24,51.222.253.0/26,167.114.139.0/24,54.39.6.0/24,54.39.136.0/24,142.44.233.0/24,54.39.0.0/24,51.161.37.0/24,142.44.220.0/24,54.39.210.0/24,54.39.203.0/24,148.113.130.0/24,51.222.95.0/24,51.161.65.0/24,54.39.89.0/24,15.235.27.0/24,148.113.128.0/24,15.235.96.0/24,142.44.228.0/24,142.44.225.0/24,51.222.168.0/24,15.235.98.0/24,54.37.118.64/27,51.75.236.128/27,92.222.108.96/27,51.68.247.192/27,176.31.139.0/27,5.39.1.224/27,92.222.104.192/27,37.59.204.128/27,94.23.188.192/27,5.39.109.160/27,51.195.244.0/24,198.244.168.0/24,198.244.226.0/24,51.195.183.0/24,198.244.183.0/24,54.38.147.0/24,198.244.240.0/24,198.244.242.0/24,51.89.129.0/24,51.195.215.0/24'
+));
 
             static::conf(array_merge($_GET, static::$defaults, $overrides));
             static::postInit();
@@ -3038,18 +3060,18 @@ class fun /* extends base */
         }
         //static::r404();
     }
-/** dev functions wisth Quick And Dirty Development */
+/** }dev functions wisth Quick And Dirty Development{ */
     static function printExceptions(){
-        \set_exception_handler('\Alptech\Wip\static::exception_handler');
+        \set_exception_handler(['\Alptech\Wip\fun','exception_handler']);//'\Alptech\Wip\fun::exception_handler'
+    }
+
+    static function printErrors(){
+        \set_error_handler(['\Alptech\Wip\fun','errorHandler']/*'\Alptech\Wip\fun::errorHandler'*/);
     }
 
     static function exception_handler(\Throwable $e) {
         echo "\n#exception: " . $e->getMessage();
         return true;
-    }
-
-    static function printErrors(){
-        \set_error_handler('\Alptech\Wip\static::errorHandler');
     }
 
     static function errorHandler($errno, $errstr, $errfile, $errline)
@@ -3085,6 +3107,8 @@ class fun /* extends base */
         static $t;if ($t) return;$t = 1;// sets to 404 if 404 previously declared ( dont mess with this seo penalty )
         static::hl('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
     }
+
+    static function utf(){return static::h();}
 
     // postNoReturn($url, ['a'=>1],'application/x-www-form-urlencoded');
     static function postNoReturn($url, $bodyOrParams, $type = 'application/json', $to = 30, $wait = true)
@@ -3197,43 +3221,6 @@ class fun /* extends base */
         return $decrypted;
     }
 
-// todo if no redis available put data to json Files ???
-    static function rc(){
-        if(static::conf('rc'))return static::conf('rc');
-        $r = new \redis();
-        $r->connect(static::conf('redisHost'), static::conf('redisPort'));
-        // $r->isConnected()
-        if(static::conf('redisPass')){$r->auth(static::conf('redisPass'));}
-        static::conf(['rc'=>$r]);
-        return $r;
-    }
-
-    static function sset($k, $v=null){
-        if (is_array($k)) {
-            foreach ($k as $k2 => $v2) {
-                static::sset($k2, $v2);
-            }
-        } else {
-            static::rc()->set($k, $v);
-        }
-    }
-
-    static function sget($k){
-        return static::rc()->get($k);
-    }
-
-    static function rpush($k,$v){
-        return static::rc()->rpush($k,$v);
-    }
-
-    static function lpop($k){
-        return static::rc()->lpop($k);
-    }
-
-    static function blpop($k){
-        return static::rc()->blpop($k);
-    }
-//rd,rk ...
     static function autoloader($name=null){
         static $loaded;
         if (is_array($loaded) and in_array($name, $loaded)) {
@@ -3269,15 +3256,53 @@ class fun /* extends base */
         return false;
     }
 
-
     static function buffer($x = '')
     {
         if(is_array($x) or is_object($x))$x=json_encode($x);
         static::$data['buffer'].=$x;
     }
 
+    // wrapper for echo
+    static function ech($x=''){
+        static $t;if(!$t){
+            static::conf(['firstEcho'=>debug_backtrace(-2)]);
+        }$t=1;
+        if(is_array($x))$x=json_encode($x);
+        echo $x;
+    }
+
+/**}shutdows{*/
+    static function obstop(){
+        static $t;if($t)return;$t=true;
+        if(session_status() !== PHP_SESSION_ACTIVE){
+            session_write_close();
+        }
+        if(!isset($GLOBALS['argv'])){// php_sapi_name() !== 'cli'
+            if (isset($_ENV['args']) && strpos($_ENV['args'], ',r302') === false && 'clear Redirection Cookies on 200 header okay' && isset($_COOKIE['redirects'])) {
+                static::delCookie('redirects');
+            }
+            static::sendPerfHeaders();
+            if (ob_get_level()) {
+                ob_end_flush();
+            }
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+            }
+        }
+    }
+
+    static function finishRequest(){
+        // todo: mysqloff, redis off
+        if(isset(static::$data['buffer']) && static::$data['buffer']){
+            echo static::$data['buffer'];
+            static::$data['buffer']='';
+        }
+        static::obstop();
+        //then do other things
+    }
+
     static function sendPerfHeaders(){
-        static $t;if($t)return;$t=1;
+        static $t;if($t)return;$t=true;
         if (!headers_sent($file, $line) or static::iscli()) {
             if (isset(static::$data['started'])) {
                 static::hl('aShutdowns: ' . round(microtime(true) - static::$data['started'], 4));
@@ -3288,32 +3313,6 @@ class fun /* extends base */
         if($error){
             error_log($error['file'].'#'.$error['line'].','.$error['message']);
         }
-    }
-    // wrapper for echo
-    static function ech($x=''){
-        static $t;if(!$t){
-            static::conf(['firstEcho'=>debug_backtrace(-2)]);
-        }$t=1;
-        if(is_array($x))$x=json_encode($x);
-        echo $x;
-    }
-
-    static function finishRequest(){
-        if(session_status() !== PHP_SESSION_ACTIVE){
-            session_write_close();
-        }
-        static::sendPerfHeaders();
-        if(isset(static::$data['buffer']) && static::$data['buffer']){
-            echo static::$data['buffer'];
-            static::$data['buffer']='';
-        }
-        if (ob_get_level()) {// ob_start();?
-            ob_end_flush();
-        }
-        if (function_exists('fastcgi_finish_request')) {
-            fastcgi_finish_request();
-        }
-        //then do other things
     }
 
     static function die($x=''){
@@ -3333,24 +3332,9 @@ class fun /* extends base */
         static::$shutdownsCallbacks[] = $cb;
     }
 
-    static function obstop(){
-        static $t;if($t)return;$t=1;
-        if(!isset($GLOBALS['argv'])){// php_sapi_name() !== 'cli'
-            if (isset($_ENV['args']) && strpos($_ENV['args'], ',r302') === false && 'clear Redirection Cookies on 200 header okay' && isset($_COOKIE['redirects'])) {
-                static::delCookie('redirects');
-            }
-            static::sendPerfHeaders();
-            if (ob_get_level()) {
-                ob_end_flush();
-            }
-            if (function_exists('fastcgi_finish_request')) {
-                fastcgi_finish_request();
-            }
-        }
-    }
-
+/**}cookies{*/
     static function delCookie($a){
-        return setCookie($x, null, -1, '/');
+        return \setCookie($a, null, -1, '/');
     }
 
     static function getCookie($k)
@@ -3380,7 +3364,8 @@ class fun /* extends base */
         if (!$t) {
             $t = strtotime('+365 days');
         }
-        setCookie($k, $v, $t, $p);
+        \setCookie($k, $v, $t, $p);
+        $_COOKIE[$k]=$v;//asap
     }
 
     static function toHttps(){
@@ -3388,20 +3373,7 @@ class fun /* extends base */
             return static::r302('https://' . static::$h . '/' . static::$u);
         }
     }
-
-    static function cidr_match($ip, $range)
-    {
-        list ($subnet, $bits) = explode('/', $range);
-        if ($bits === null) {
-            $bits = 32;
-        }
-        $ip = ip2long($ip);
-        $subnet = ip2long($subnet);
-        $mask = -1 << (32 - $bits);
-        $subnet &= $mask; // nb: in case the supplied subnet wasn't correctly aligned
-        return ($ip & $mask) == $subnet;
-    }
-
+/** }envs{ */
     static function ge($k, $envFile)
     {
         static $t = [];
@@ -3434,6 +3406,42 @@ class fun /* extends base */
         return $current[$k] ?? null;
     }
 
+/** }ip{ */
+    static function cidr_match($ip, $range)
+    {
+        list ($subnet, $bits) = explode('/', $range);
+        if ($bits === null) {
+            $bits = 32;
+        }
+        $ip = ip2long($ip);
+        $subnet = ip2long($subnet);
+        $mask = -1 << (32 - $bits);
+        $subnet &= $mask; // nb: in case the supplied subnet wasn't correctly aligned
+        return ($ip & $mask) == $subnet;
+    }
+
+    static function ipok($ip)
+    {
+        foreach (static::$cidrs as $cidr) {
+            if(static::cidr_match($ip, $cidr)) {
+                return true;
+            }
+        }
+    }
+
+/** }redis{ */
+
+// todo if no redis available put data to json Files ???
+    static function rc(){
+        if(static::conf('rc'))return static::conf('rc');
+        $r = new \redis();
+        $r->connect(static::conf('redisHost'), static::conf('redisPort'));
+        // $r->isConnected()
+        if(static::conf('redisPass')){$r->auth(static::conf('redisPass'));}
+        static::conf(['rc'=>$r]);
+        return $r;
+    }
+
     static function rgg($k)
     {
         $r=static::rc();
@@ -3455,22 +3463,227 @@ class fun /* extends base */
         }
     }
 
-    static function ipok($ip)
-    {
-        foreach (static::$cidrs as $cidr) {
-            if(static::cidr_match($ip, $cidr)) {
-                return true;
+    static function sset($k, $v=null){
+        if (is_array($k)) {
+            foreach ($k as $k2 => $v2) {
+                static::sset($k2, $v2);
             }
+        } else {
+            static::rc()->set($k, $v);
         }
     }
+
+
+    static function re($k, $v = 3600)
+    {
+        return static::rc()->expire($k,$v);
+    }
+
+
+
+    static function rhget($h, $k)
+    {
+        return static::rc()->hget($h, $k);
+    }
+
+    static function rhset($h, $k, $v)
+    {
+        return static::rc()->hset($h, $k, $v);
+    }
+
+    static function rhmset($h, $kv)
+    {
+        return static::rc()->hmset($h, $kv);
+    }
+
+    static function rk($k = '*')
+    {
+        return static::rc()->keys($k);
+    }
+
+    static function rg($k){return static::rget($k);}
+    static function rs($k, $v){return static::rset($k,$v);}
+
+    static function rget($k){
+        return static::rc()->get($k)??null;}
+    static function rset($k,$v){
+        return static::rc()->set($k,$v);}
+
+    static function rd($k)
+    {
+        return static::rc()->del($k);
+    }
+
+    static function rpush($k,$v){
+        return static::rc()->rpush($k,$v);
+    }
+
+    static function lpop($k){
+        return static::rc()->lpop($k);
+    }
+
+    static function blpop($k){
+        return static::rc()->blpop($k);
+    }
+
+/** } io methods { */
+    static function fap($file, $contents)
+    {
+        return static::fpc($file, "\n" . $contents, 8);
+    }
+
+    static function fgc($file, $include_path = false, $context = null)
+    {
+        $return = @file_get_contents($file, $include_path, $context);
+        return $return;
+    }
+
+    static function FPP($f,$data){
+        return file_put_contents($f,'<?php return '.static::var_export_min($data, true).';');
+    }
+
+    static function var_export_min($var, $return = true) {
+        if (is_array($var)) {
+            $toImplode = [];
+            $ak=array_keys($var);$linear=false;if($ak[0]===0 && end($ak)==count($ak)-1){
+                $linear=true;
+            }
+            foreach ($var as $key => $value) {
+                if($linear){
+                    $toImplode[] = static::var_export_min($value, true);
+                } else{
+                    $toImplode[] = var_export($key, true) . '=>' . static::var_export_min($value, true);
+                }
+            }
+            $code = '['.implode(',', $toImplode).']';
+            if ($return) return $code;
+            else echo $code;
+        } else {
+            return var_export($var, $return);
+        }
+    }
+
+    static function FPC($f, $d, $o = null)
+    {
+        $f = str_replace('c:/home/', '', $f);#loclahost
+        static $rec;
+        $rec++;
+        if ($rec > 2) {
+            $_bt = debug_backtrace(-2);
+            $err = 'recursivity';
+        }
+        $path = explode('/', $f);
+        $end = array_pop($path);
+        $folder = implode('/', $path);
+        if ($folder and !is_dir($folder)) {#/logs/c:/home/
+            $ok = mkdir($folder, 0777, 1);
+            if (!$ok) {#caution ::: LLOOPSSS !!!
+                static::db('cant mkdir ' . $folder, 'anom.log');
+            }
+        }
+        $rec--;
+        return file_put_contents($f, $d, $o);
+    }
+
+    static function fgcj($f, $as_array = true)
+    {
+        return static::isJson(static::fgc($f), $as_array);
+    }
+
+    static function FPCJ($f, $d)
+    {
+        if (in_array(gettype($d), ['object', 'array']) or 1) {
+            $d = json_encode($d);
+        }#logiquement, mais si déjà encodé ?
+        return static::FPC($f, $d);
+    }
+
+// todo; vs jsonvalid ?
+    static function isJson($string = '', $asArray = 1)
+    {
+        if (!trim($string)) {
+            return [];
+        }
+        try {
+            $x = @json_decode($string, $asArray);
+            $a=1;
+        } catch (\JsonException $exception) {
+            static::fap(static::getConf('logs') . '.json.log', "\n" . print_r($exception, 1), 8);
+            $_ENV['_err']['jsondecode'][] = $exception;
+            return [];
+            echo $exception->getMessage(); // displays "Syntax error"
+        }
+        if (!$x) {#Control character error, possibly incorrectly encoded[
+            $e = json_last_error();
+            $m = json_last_error_msg();
+            $x = substr($string, 7, 10);
+            $chars = str_split($x);
+            foreach ($chars as &$v) {
+                $v = ord($v);
+            }
+            unset($v);
+            $_ENV['_err']['jsondecode'][] = compact('e', 'm', 'chars', 'string');
+            static::fap(static::getConf('logs') . '.json.log', "\n" . implode(',', $chars), 8);
+            return [];
+        }
+
+        if (json_last_error() != JSON_ERROR_NONE) {
+            return [];
+        }
+        return $x;
+    }
+
+/** } todo:wip:session to redis future wrapper { */
+
 /*
 wrapper open and close session for long long pages which locks the session for n minutes, then a javascript dependency waits for the lock to be release for simply reading then
 todo: to be replaced with $r->set('session_id:key',$value,expire=3600)
  */
-    static function sesset($k,$v){
-        @session_start();
+
+    /**
+     * session_start wrapper returns session id
+     * @return void
+     */
+    static function ss()
+    {
+        if (static::conf('sessions2redis')) {
+            $a=static::getCookie('RSID');
+            if($a)return $a;
+            //set cookie for session ( PHPSESSID_ ) => RSID=uniqid()
+            $a=\uniqid();
+            static::setCookie('RSID',$a);
+            static::rc();
+            return $a;
+        }
+        if (session_status() === PHP_SESSION_NONE) {session_start();}
+        return session_id();
+    }
+
+    static function sesset($k,$v,$expire=3600){
+        static::ss();
+        if (static::conf('sessions2redis')) {
+            $k2='session:'.static::getCookie('RSID');
+            static::rHset($k2,$k,$v);
+            return static::re($k2,$expire);
+        }
         $_SESSION[$k]=$v;
         session_write_close();
+    }
+
+    static function sesget($k){
+        static::ss();
+        if (static::conf('sessions2redis')) {
+            $k2='session:'.static::getCookie('RSID');
+            $a=static::rHget($k2,$k)??null;
+            if($a)static::re($k2,$expire);
+            return $a;
+        }
+        return $_SESSION[$k] ?? null;
+        session_write_close();
+    }
+
+    static function sget($k){
+        return static::rc()->get($k);
     }
     // todo: virtual session support : using redis or short session_write_closes ???
 }

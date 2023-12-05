@@ -7,7 +7,7 @@ class io
 {
     static function fap($file, $contents)
     {
-        return io::fpc($file, "\n" . $contents, 8);
+        return static::fpc($file, "\n" . $contents, 8);
     }
 
     static function fgc($file, $include_path = false, $context = null)
@@ -17,7 +17,7 @@ class io
     }
 
     static function FPP($f,$data){
-        return file_put_contents($f,'<?php return '.io::var_export_min($data, true).';');
+        return file_put_contents($f,'<?php return '.static::var_export_min($data, true).';');
     }
 
     static function var_export_min($var, $return = true) {
@@ -28,11 +28,11 @@ class io
             }
             foreach ($var as $key => $value) {
                 if($linear){
-                    $toImplode[] = io::var_export_min($value, true);
+                    $toImplode[] = static::var_export_min($value, true);
                 } else{
-                    $toImplode[] = var_export($key, true) . '=>' . io::var_export_min($value, true);
+                    $toImplode[] = var_export($key, true) . '=>' . static::var_export_min($value, true);
                 }
-                //$toImplode[] = var_export($key, true).'=>'.io::var_export_min($value, true);
+                //$toImplode[] = var_export($key, true).'=>'.static::var_export_min($value, true);
             }
             $code = '['.implode(',', $toImplode).']';
             if ($return) return $code;
@@ -66,7 +66,7 @@ class io
 
     static function fgcj($f, $as_array = 1)
     {
-        return io::isJson(io::fgc($f), $as_array);
+        return static::isJson(static::fgc($f), $as_array);
     }
 
     static function FPCJ($f, $d)
@@ -74,7 +74,7 @@ class io
         if (in_array(gettype($d), ['object', 'array']) or 1) {
             $d = json_encode($d);
         }#logiquement, mais si déjà encodé ?
-        return io::FPC($f, $d);
+        return static::FPC($f, $d);
     }
 
     static function isJson($string = '', $asArray = 1)
@@ -86,7 +86,7 @@ class io
             $x = @json_decode($string, $asArray);
             $a=1;
         } catch (\JsonException $exception) {
-            io::fap(fun::getConf('logs') . '.json.log', "\n" . print_r($exception, 1), 8);
+            static::fap(fun::getConf('logs') . '.json.log', "\n" . print_r($exception, 1), 8);
             $_ENV['_err']['jsondecode'][] = $exception;
             return [];
             echo $exception->getMessage(); // displays "Syntax error"
@@ -101,7 +101,7 @@ class io
             }
             unset($v);
             $_ENV['_err']['jsondecode'][] = compact('e', 'm', 'chars', 'string');
-            io::fap(fun::getConf('logs') . '.json.log', "\n" . implode(',', $chars), 8);
+            static::fap(fun::getConf('logs') . '.json.log', "\n" . implode(',', $chars), 8);
             return [];
         }
 
