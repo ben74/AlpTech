@@ -3,7 +3,7 @@ namespace Alptech\Wip;
 
 class fun /* extends base */
 {
-    static $data = ['errors'=>[],'buffer'=>''], $conf =[], $cidrs=[],$shutdownsCallbacks = [],  $args = [], $_shared = [],$statusCode = 200, $ua,$connection, $ext, $dru,$hu, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
+    static $headers = [], $data = ['errors' => [], 'buffer' => ''], $conf = [], $cidrs = [], $shutdownsCallbacks = [], $args = [], $_shared = [], $statusCode = 200, $ua, $connection, $ext, $dru, $hu, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
         'sessions2redis'=>false,'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/','#DR#app/prod/',__DIR__.'/']
         ,'redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
@@ -159,22 +159,34 @@ class fun /* extends base */
     static function r404($x = '', $y = '')
     {
         if ($y) null;
-        static::$statusCode=404;
-        static::hl('HTTP/1.0 404 Not Found', true, static::$statusCode);
+        static::$statusCode = 404;
+        // todo: eval blocking condition on website scans ...
+        static::h('HTTP/1.0 404 Not Found', true, static::$statusCode);
         static::_die('/* <a href="/">not found : ' . trim($x, ' */') . ' </a><script>location.href="/#' . str_replace('"', '', $x) . '";</script>*/');
     }
 
-    static function hl($a = '', $b = true, $c = null)
+
+    static function hl($a = '', $b = true, $c = 0)
+    {
+        return static::h($a, $b, $c);
+    }
+
+    static function h($header = '', $replace = true, $code = 0)
     {
         if(static::iscli()){
             return;
         }
-        //$b=get_required_files();$a=headers_list();$file=$line=0;\headers_sent($file,$line);// trying to catch a redirect
-        if (!$c) {
-            \header($a, $b);
+        if (strpos($header, ':')) {
+            [$k, $v] = explode(':', $header);
         } else {
-            \header($a, $b, $c);
+            $k = $header;
+            $v = true;
         }
+        if (isset(static::$headers[$k])) {
+            $b = 2;
+        }
+        static::$headers[$k] = $v;
+        \header($header, $replace, $code);
     }
 
     static function r301($x = '')
@@ -189,8 +201,8 @@ class fun /* extends base */
         }
         static::$statusCode = $code;
         $db=implode(',',array_map(function($a){return basename($a['file']).':'.$a['line'];},debug_backtrace(-2)));
-        static::hl('Ar302: ' . $db);
-        static::hl('Location: ' . $x, true, $code);
+        static::h('Ar302: ' . $db);
+        static::h('Location: ' . $x, true, $code);
         static::_die();
     }
 
@@ -632,10 +644,21 @@ class fun /* extends base */
         $url = str_replace(' ', '%20', $url);#no urlencode ..
         $ch = \curl_init();
         $headers[] = 'Expect:';/*100 header*/
-        if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
+        if ($url) {
+            $opt[CURLOPT_URL] = $url;
+        }
+        /*if (isset($opt[CURLOPT_URL]) and $opt[CURLOPT_URL]) {
             $url = $opt[CURLOPT_URL];
         }// CURLOPT_VERBOSE => 1,
-        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout, CURLOPT_HTTPHEADER => $headers];
+*/
+        if (!isset($opt[CURLOPT_HTTPHEADER])) {
+            $opt[CURLOPT_HTTPHEADER] = [];
+        }
+        if ($headers) {
+            $opt[CURLOPT_HTTPHEADER] = array_unique(array_merge($opt[CURLOPT_HTTPHEADER], $headers));
+        }
+
+        $opts = [CURLOPT_URL => $url, CURLOPT_HEADER => 1, CURLINFO_HEADER_OUT => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_AUTOREFERER => 1, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => $timeout];
         if ($follow) {
             $opts += [CURLOPT_FOLLOWLOCATION => $follow];
         }#
@@ -664,8 +687,11 @@ class fun /* extends base */
         return compact('contents', 'header', 'info', 'error', 'opts');
     }
 
-    static function cuj($url, $jsonPayload){
-        return static::cup($url, [], $jsonPayload, ['Content-Type: application/json']);
+    static function cuj($url, $jsonPayload, $opt = [], $headers = [])
+    {
+        if(is_array($jsonPayload))$jsonPayload=json_encode($jsonPayload);
+        $headers=array_merge($headers,['Content-Type: application/json']);
+        return static::cup($url, $opt, $jsonPayload,$headers);
     }
 
     static function fDl($distant, $local)
@@ -677,6 +703,11 @@ class fun /* extends base */
         \fclose($fh);
         $fh = null;
         return $res;
+    }
+
+    static function cu($url, $headers = [])
+    {
+        return static::cup($url, [], [], $headers);
     }
 
     static function cuo($opts)
@@ -882,8 +913,8 @@ class fun /* extends base */
             return __function__ . '/' . static::getConf('defaultImage');
         }
         static::$statusCode=404;
-        static::hl('Content-type: image/png');
-        static::hl('HTTP/1.0 404 Not Found', true, static::$statusCode);
+        static::h('Content-type: image/png');
+        static::h('HTTP/1.0 404 Not Found', true, static::$statusCode);
         readfile(static::getConf('defaultImage'));
         static::_die();
         #static::die("/*$x*/");
@@ -2007,11 +2038,11 @@ class fun /* extends base */
 // substitute to session start and use redis for keys instead !
     static function nocache()
     {
-        static::hl("Expires: on, 23 Feb 1983 19:37:15 GMT");
-        static::hl("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
-        static::hl("Cache-Control: no-store, no-cache, must-revalidate");
-        static::hl("Cache-Control: post-check=0, pre-check=0", false);
-        static::hl("Pragma: no-cache");
+        static::h("Expires: on, 23 Feb 1983 19:37:15 GMT");
+        static::h("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
+        static::h("Cache-Control: no-store, no-cache, must-revalidate");
+        static::h("Cache-Control: post-check=0, pre-check=0", false);
+        static::h("Pragma: no-cache");
     }
 
     static function sendMail($to, $sub, $body, $head = null, $from = null, $mid = '')
@@ -2681,14 +2712,14 @@ class fun /* extends base */
                 (isset($_SERVER['HTTP_IF_NONE_MATCH']) and $_SERVER['HTTP_IF_NONE_MATCH'] == $etag)
                 or (!$customEtag and isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) and $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $date) // simple mode using last modified
         ) {
-            static::hl('HTTP/1.1 304 Not Modified', 1, 304);
+            static::h('HTTP/1.1 304 Not Modified', 1, 304);
             die;
         }
-        static::hl('ETag: ' . $etag, 1);
-        static::hl('Cache-Control: public, max-age=' . $expiration, 1);
-        static::hl('Last-Modified: ' . $date, 1);
+        static::h('ETag: ' . $etag, 1);
+        static::h('Cache-Control: public, max-age=' . $expiration, 1);
+        static::h('Last-Modified: ' . $date, 1);
         $date2 = gmdate('D, j M Y H:i:s', time() + $expiration) . ' GMT';
-        static::hl('Expires: ' . $date2, 1);
+        static::h('Expires: ' . $date2, 1);
     }
 
     /**
@@ -3069,7 +3100,7 @@ static::$cidrs = array_unique(explode(',',
         } elseif(0 and !static::$ext){// Not good, kills current namespace
             $f=trim(static::$uq,'./').'.php';
             if(is_file($f)){
-                static::hl('HTTP/1.1 200 OK');
+                static::h('HTTP/1.1 200 OK');
                 require_once $f;
                 return;
             }
@@ -3082,7 +3113,15 @@ static::$cidrs = array_unique(explode(',',
     }
 
     static function printErrors(){
-        \set_error_handler(['\Alptech\Wip\fun','errorHandler']/*'\Alptech\Wip\fun::errorHandler'*/);
+        \set_error_handler(['\Alptech\Wip\fun','printErrorHandler']/*'\Alptech\Wip\fun::errorHandler'*/);
+    }
+
+    static function printErrorHandler($errno, $errstr, $errfile='', $errline=0)
+    {
+        if (!(error_reporting() & $errno)) {
+            return false;
+        }
+        echo"\n#error:".$errno.':'.$errfile.':'.$errline.':'.$errstr;
     }
 
     static function logErrors(){
@@ -3100,13 +3139,6 @@ static::$cidrs = array_unique(explode(',',
         static::$data['errors'][$errfile.','.$errline] = $errstr;
     }
 
-    static function errorHandler($errno, $errstr, $errfile='', $errline=0)
-    {
-        if (!(error_reporting() & $errno)) {
-            return false;
-        }
-        echo"\n#error:".$errno.':'.$errfile.':'.$errline.':'.$errstr;
-    }
     static function getTitle($x){return trim(preg_replace('@ +@',' ',preg_replace('@[^0-9a-z]+@',' ',$x)));}
 
     static function date2fr($x){
@@ -3128,13 +3160,10 @@ static::$cidrs = array_unique(explode(',',
         return str_replace($ACCENTS, $NACCENTS, $x);
     }
 
-    static function h()
-    {
-        static $t;if ($t) return;$t = 1;// sets to 404 if 404 previously declared ( dont mess with this seo penalty )
-        static::hl('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
+    static function utf(){
+        static $t;if ($t) return;$t = 1;
+        static::h('Content-Type: text/html; charset=utf-8', true, static::$statusCode);
     }
-
-    static function utf(){return static::h();}
 
     // postNoReturn($url, ['a'=>1],'application/x-www-form-urlencoded');
     static function postNoReturn($url, $bodyOrParams, $type = 'application/json', $to = 30, $wait = true)
@@ -3342,13 +3371,13 @@ static::$cidrs = array_unique(explode(',',
         static $t;if($t)return;$t=true;
         if (!headers_sent($file, $line) and !static::iscli()) {
             if (isset(static::$data['started'])) {
-                static::hl('aShutdowns: ' . round(microtime(true) - static::$data['started'], 4));
+                static::h('aShutdowns: ' . round(microtime(true) - static::$data['started'], 4));
             }
             $mem = memory_get_peak_usage();
             if (0 and $mem > 8000000 and !in_array(static::$uq,['/2.php', '/edit-crop.php'])) {
                 static::fap(ini_get('error_log'), static::$hu . ':' . $mem);
             }
-            static::hl('aMem: ' . $mem);
+            static::h('aMem: ' . $mem);
         }
         $error = error_get_last() ?? [];
         if($error){
@@ -3380,7 +3409,6 @@ static::$cidrs = array_unique(explode(',',
             if (strpos($v, 'ob_end_flush') || strpos($v, 'zlib output compression ')) {
                 $s[] = 'ob:' . json_encode(static::$data['ob']) . ' -> ' . ob_get_level();
             }
-
             if (stripos($v, 'already defined') || stripos($v, 'ndefined global variable') || stripos($v, 'ndefined variable') || strpos($v, 'Undefined array key') || strpos($v, 'Trying to access array offset on value of type null') || stripos($v, 'Only variables should be passed by reference')) {
                 $obs[] = str_replace("\n", '.', $k . ' ' . $v);
             } else {
@@ -3388,14 +3416,14 @@ static::$cidrs = array_unique(explode(',',
             }
         }
         // the context ..
-        if (isset(\a::$data['err']) && \a::$data['err']) {
-            $s[] = \a::$data['err'];
+        if (isset(static::$data['err']) && static::$data['err']) {
+            $s[] = static::$data['err'];
         }
         if ($s) {
-            static::fap(ini_get('error_log'), $_SERVER['REQUEST_URI'] . " : " . implode(' ; ', $s));
+            static::fap(ini_get('error_log'), ($_SERVER['HTTP_HOST'] ?? '') . $_SERVER['REQUEST_URI'] . ' : ' . implode(' ; ', $s));
         }
         if ($obs) {
-            static::fap(ini_get('error_log') . '.obs', $_SERVER['REQUEST_URI'] . " : " . implode(' ; ', $obs));
+            static::fap(ini_get('error_log') . '.obs', ($_SERVER['HTTP_HOST'] ?? '') . $_SERVER['REQUEST_URI'] .' : ' . implode(' ; ', $obs));
         }
         static::$data['errors'] = [];// reset if next pass ??
     }
@@ -3576,29 +3604,38 @@ static::$cidrs = array_unique(explode(',',
         return static::rc()->keys($k);
     }
 
-    static function rg($k){return static::rget($k);}
-    static function rs($k, $v){return static::rset($k,$v);}
-
-    static function rget($k){
-        return static::rc()->get($k)??null;}
-    static function rset($k,$v){
-        return static::rc()->set($k,$v);}
-
-    static function rd($k)
+    static function rset($k, $v, $exp = 0)
     {
-        return static::rc()->del($k);
+        // todo ; if array $v .. => static::rhmset($k,$v);
+        return static::rc()->set($k,$v);
+        if($exp)static::rexp($k,$exp);
     }
 
-    static function exp($k,$v){
-        return static::re($k,$v);
-    }
-    static function re($k, $v = 3600)
+    static function rget($k){return static::rc()->get($k)??null;}
+    static function rexp($k, $v = 3600){return static::rc()->expire($k, $v);}
+    static function rd($k){return static::rc()->del($k);}
+
+static function re($k, $v = 3600){return static::rexp($k,$v);}
+static function exp($k,$v = 3600){return static::re($k,$v);}
+static function rdel($k){return static::rd($k);}
+static function rg($k){return static::rget($k);}
+static function rs($k, $v ,$e=0){return static::rset($k,$v,$e);}
+
+    static function rllen($k)
     {
-        return static::rc()->expire($k,$v);
+        return static::rc()->llen($k);
     }
 
     static function rList($k){
         return static::rc()->lrange($k,0,-1);
+    }
+
+    static function rDecr($k,$n=1){
+        return static::rc()->decr($k,$n);
+    }
+
+    static function rIncr($k,$n=1){
+        return static::rc()->incr($k,$n);
     }
 
     static function rpush($k,$v){
@@ -3616,7 +3653,7 @@ static::$cidrs = array_unique(explode(',',
 /** } io methods { */
     static function fap($file, $contents)
     {
-        return static::fpc($file, $contents."\n", 8);
+        return static::fpc($file, "\n".$contents, FILE_APPEND);
     }
 
     static function fgc($file, $include_path = false, $context = null)
@@ -3654,9 +3691,8 @@ static::$cidrs = array_unique(explode(',',
 
     static function FPC($f, $d, $o = null)
     {
-        $f = str_replace('c:/home/', '', $f);#loclahost
-        static $rec;
-        $rec++;
+        $f = str_replace('c:/home/', '', $f);//loclahost
+        static $rec;$rec++;
         if ($rec > 2) {
             $_bt = debug_backtrace(-2);
             $err = 'recursivity';
@@ -3782,3 +3818,6 @@ if(!isset($custom)){
     fun::init();
 }
 return; ?>
+
+errors: usages of
+\a::
