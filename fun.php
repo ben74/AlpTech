@@ -1,13 +1,10 @@
 <?php
 namespace Alptech\Wip;
-
-if(isset($_COOKIE['kBTrace'])){$cpu=getrusage()['ru_stime.tv_usec'];$_ENV['cpus'][basename(__FILE__).__LINE__]=$cur=$cpu-$_ENV['lastcpu'];$_ENV['lastcpu']=$cpu;}// library is self cpu extensive ...
-
 class fun /* extends base */
 {
-    static $curlTimeout=90,$finished=false,$headersSent=[],$headers = [], $data = ['errors' => [], 'buffer' => ''], $conf = [], $cidrs = [], $shutdownsCallbacks = [], $args = [], $_shared = [], $statusCode = 200, $ua, $connection, $ext, $dru, $hu, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
-        'noTruncate'=>true,'sessions2redis'=>false,'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/','#DR#app/prod/',__DIR__.'/']
-        ,'redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
+    static $curlTimeout = 90, $finished = false, $headersSent = [], $headers = [], $data = ['errors' => [], 'buffer' => ''], $conf = [], $cidrs = [], $shutdownsCallbacks = [], $args = [], $_shared = [], $statusCode = 200, $ua, $connection, $ext, $dru, $hu, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
+        'noTruncate' => true, 'sessions2redis' => false, 'autoloadPaths' => ['#DR#', '#DR#app/dev/', '#DR#app/ppd/', '#DR#app/prod/', __DIR__ . '/classes/', '#DR#app/prod/', __DIR__ . '/']
+        , 'redisHost' => '127.0.0.1', 'redisPort' => 6379, 'encryptionKey' => 'ya', 'encryptionAlgo' => 'AES-256-CBC', 'sqlStats' => false/*dev:keep memory of each sql results*/];
 
     static function conf($x=null){// fun::conf(['sessions2redis'=>false]);
         if(!isset($x) || !$x)return static::$data;
@@ -3972,13 +3969,11 @@ todo: to be replaced with $r->set('session_id:key',$value,expire=3600)
 
     // todo: virtual session support : using redis or short session_write_closes ???
 }
-if(isset($_COOKIE['kBTrace'])){$cpu=getrusage()['ru_stime.tv_usec'];$_ENV['cpus'][basename(__FILE__).__LINE__]=$cur=$cpu-$_ENV['lastcpu'];$_ENV['lastcpu']=$cpu;}// 667450 dans le boot
 
 if(!isset($custom)){
     fun::init();
 }
 
-if(isset($_COOKIE['kBTrace'])){$cpu=getrusage()['ru_stime.tv_usec'];$_ENV['cpus'][basename(__FILE__).__LINE__]=$cur=$cpu-$_ENV['lastcpu'];$_ENV['lastcpu']=$cpu;}// 667450 dans le boot
 return; ?>
 
 errors: usages of
