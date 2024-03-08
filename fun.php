@@ -1,13 +1,15 @@
 <?php
 namespace Alptech\Wip;
 
+if(isset($_COOKIE['kBTrace'])){$cpu=getrusage()['ru_stime.tv_usec'];$_ENV['cpus'][basename(__FILE__).__LINE__]=$cur=$cpu-$_ENV['lastcpu'];$_ENV['lastcpu']=$cpu;}// library is self cpu extensive ...
+
 class fun /* extends base */
 {
     static $curlTimeout=90,$finished=false,$headersSent=[],$headers = [], $data = ['errors' => [], 'buffer' => ''], $conf = [], $cidrs = [], $shutdownsCallbacks = [], $args = [], $_shared = [], $statusCode = 200, $ua, $connection, $ext, $dru, $hu, $h, $u, $uq, $dr, $q, $ip, $local, $env, $t = 0, $quotes = ["'", '"'], $unquotes = ["′", '″'], $defaults = [
-        'sessions2redis'=>false,'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/','#DR#app/prod/',__DIR__.'/']
+        'noTruncate'=>true,'sessions2redis'=>false,'autoloadPaths'=> ['#DR#', '#DR#app/dev/','#DR#app/ppd/','#DR#app/prod/',__DIR__ . '/classes/','#DR#app/prod/',__DIR__.'/']
         ,'redisHost'=>'127.0.0.1','redisPort'=>6379,'encryptionKey'=>'ya','encryptionAlgo'=>'AES-256-CBC','sqlStats'=>false/*dev:keep memory of each sql results*/];
 
-    static function conf($x=null){// fun::conf(['a'=>1]);
+    static function conf($x=null){// fun::conf(['sessions2redis'=>false]);
         if(!isset($x) || !$x)return static::$data;
         elseif(is_array($x)){
             static::$data=array_merge(static::$data,$x);
@@ -201,10 +203,10 @@ class fun /* extends base */
 
     static function r301($x = '')
     {
-        return static::r302($x, 0, 301);
+        return static::r302($x, false, 301);
     }
 
-    static function r302($x = '', $virtual = 0, $code = 302)
+    static function r302($x = '', $virtual = false, $code = 302)
     {
         if ($virtual) {
             return "r302::$x";//
@@ -222,10 +224,6 @@ class fun /* extends base */
         if (!static::getConf('sendLogs') || !static::getConf('logCollectorUrl')) {
             return;
         }
-        #return;
-        if (0 and (DEV or LOCAL)) {
-            return;
-        }#$a=1;DEVBREAKPOINT
         $bt = static::bt(1);
         if (!$sub) {
             $sub = $_ENV['h'] . ' debug';
@@ -1684,7 +1682,7 @@ class fun /* extends base */
         ];
         asort($verbs);
         $verb = array_keys(array_filter($verbs))[0];
-        if (in_array($verb, ['drop', 'truncate'])) {
+        if (static::conf('noTruncate') && in_array($verb, ['drop', 'truncate'])) {
             throw new \Exception($verb . " operations are flagged as insecure ..");
         }
         if (in_array($verb, ['delete', 'update']) && stripos($sql, 'where ') === FALSE) {
@@ -1895,7 +1893,7 @@ class fun /* extends base */
             $a = microtime(1);
             file_put_contents($_ENV['sqlLog'], "\n\nRunning:" . $sql, 8);
         }
-        $konnektion = $h . $db . $port . $names;
+        $konnektion = $h . $db . $port . $names . crc32(json_encode($options));// switching options changes connections
         try {
             if (!isset($_ENV['pdo_' . $konnektion])) {
                 $_ENV['pdo_' . $konnektion] = new \PDO('mysql:host=' . $h . ';port=' . $port . ';dbname=' . $db, $u, $p, $options);
@@ -1926,6 +1924,7 @@ class fun /* extends base */
             }
 
             try {
+                $_ENV['ll'] = $sql . ';' . __LINE__;
                 if ($params) {
                     $cmd = $cnx->prepare($sql);
                     if ($bindParams) {
@@ -2714,31 +2713,38 @@ class fun /* extends base */
         }
     }
 
-    static function r304($max, $customEtag = null, $expiration = 900000)
+    static function r304($max, $customEtag = null, $expiration = 900000, $via = null)
     {// uncheck: network : disable cache, then chrome responds 200 ( inner chrome disk cache ok )
         static $fired;
         if ($fired) {
             return;
         }
+        $via = $via ?? $_SERVER['HTTP_IF_NONE_MATCH'] ?? 0;
+        if($via && stripos($via,'W/"')===false) {
+            if(is_numeric($via))$via='a'.$via;
+            $via = 'W/"' . $via . '"';
+        }
+        static::h('anm:' . $via, true);
         $fired = true;
 
-        if(!is_numeric($max)){
-            if(is_file($max)){
-                $max=filemtime($max);
-            }
+        if (is_numeric($max)) {
+            $etag = 'a' . $max;
+        } else {
+            if (is_file($max)) $max = filemtime($max);
+            else $max = time() + $expiration;
         }
-        $etag = $max;
+
         if ($customEtag) $etag = $customEtag;
-        $etag = trim(base64_encode((string)$etag),'=');
+        //$etag = trim(base64_encode((string)$etag),'=');
         $date = gmdate('D, j M Y H:i:s', $max) . ' GMT';
         if (
-                (isset($_SERVER['HTTP_IF_NONE_MATCH']) and $_SERVER['HTTP_IF_NONE_MATCH'] == $etag)
+                ($via && $via == 'W/"'.$etag.'"')
                 or (!$customEtag and isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) and $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $date) // simple mode using last modified
         ) {
             static::h('HTTP/1.1 304 Not Modified', true, 304);
             die;
         }
-        static::h('Etag: ' . $etag, true);
+        static::h('Etag: "' . $etag.'"', true);//   W/"etag"
         static::h('Cache-Control: public, max-age=' . $expiration, true);
         static::h('Last-Modified: ' . $date, true);
         $date2 = gmdate('D, j M Y H:i:s', time() + $expiration) . ' GMT';
@@ -3039,7 +3045,13 @@ class fun /* extends base */
             static::conf(array_merge(static::$defaults, $values['args'], $values, $overrides));
             static::postInit();
 
-        }else{// http forwarded request
+        } else {// http forwarded request
+            foreach ($_SERVER as $k => $v) {
+                if (substr($k, 0, 9) === 'REDIRECT_' && !isset($_SERVER[substr($k, 9)])) {
+                    $_SERVER[substr($k, 9)] = $v;
+                }
+            }
+
             if('neutralize and replace some params'){
                 $rep = ['%2f'=>''];// path traversal .. authorize simple slash / for js=y/plop.min.js
                 foreach ($rep as $a=>$b) {
@@ -3101,6 +3113,7 @@ static::$cidrs = array_unique(explode(',',
         static::$hu = static::$h.'/'.static::$uq;
         spl_autoload_register([__CLASS__,'autoloader'],true,true);//above others for custom overrides
         register_shutdown_function([__CLASS__,'shutdown'], ['parameter' => 'firstShutdown']);#1:collecteur , 2:parameters
+
     }
 
     static function jsonValid($json, $asArray = true)
@@ -3130,7 +3143,7 @@ static::$cidrs = array_unique(explode(',',
         }
         //static::r404();
     }
-/** }dev functions wisth Quick And Dirty Development{ */
+/* }dev functions wisth Quick And Dirty Development{ */
     static function printExceptions(){
         \set_exception_handler(['\Alptech\Wip\fun','exception_handler']);//'\Alptech\Wip\fun::exception_handler'
     }
@@ -3279,23 +3292,26 @@ static::$cidrs = array_unique(explode(',',
         ];
     }
 
-    static function encrypt($password){
-		$key = static::conf('encryptionKey');
+    static function encrypt($password, $serialize = false)
+    {
+        $key = static::conf('encryptionKey');
 		$cipher = static::conf('encryptionAlgo');
 		$iv = random_bytes(openssl_cipher_iv_length($cipher));
 		$value = \openssl_encrypt(/*$serialize ? serialize($password) : */$password, $cipher, $key, 0, $iv);
         $iv = base64_encode($iv);
         $mac = hash_hmac("sha256", $iv . $value, $key);
         $json = json_encode(compact('iv', 'value', 'mac'), JSON_UNESCAPED_SLASHES);
+        if($serialize)return serialize(base64_encode($json));
         return base64_encode($json);
     }
 
-    static function decrypt($password){
+    static function decrypt($password, $unserialize = false)
+    {
 		$v = base64_decode($password);
         $payload = json_decode($v, true);
         $iv = base64_decode($payload['iv']);
         $decrypted = \openssl_decrypt($payload['value'], static::conf('encryptionAlgo'), static::conf('encryptionKey'), 0, $iv);
-        //$decrypted=unserialize($decrypted);
+        if($unserialize)return unserialize($decrypted);
         return $decrypted;
     }
 
@@ -3353,7 +3369,7 @@ static::$cidrs = array_unique(explode(',',
     static function obstart(){if(!ob_get_level()){ob_start();}}
     static function obflush(){while(ob_get_level()){ob_end_flush();}}
 
-/**}shutdows{*/
+/*}shutdows{*/
     static function obstop(){
         static $t;if($t)return;$t=true;
         if(session_status() !== PHP_SESSION_ACTIVE){
@@ -3424,6 +3440,7 @@ static::$cidrs = array_unique(explode(',',
     //always called at the end (99), can be cumulated until one of them calls die or exit within
     static function shutdown($a = null){
         static::finishRequest();
+        static::sessionClose();
         foreach(static::$shutdownsCallbacks as $callback){
             $callback();
         }
@@ -3462,7 +3479,7 @@ static::$cidrs = array_unique(explode(',',
         static::$shutdownsCallbacks[] = $cb;
     }
 
-/**}cookies{*/
+/*}cookies{*/
     static function delCookie($a){
         return \setCookie($a, null, -1, '/');
     }
@@ -3509,10 +3526,10 @@ static::$cidrs = array_unique(explode(',',
             return static::r302('https://' . static::$h . '/' . static::$u);
         }
     }
-/** }envs{ */
+/* }envs{ */
     static function ge($k, $envFile=null)
     {
-        $envFile=$envFile??$GLOBALS['envfile'];
+        $envFile = $envFile ?? $GLOBALS['envfile'];
         static $t = [];
         if (!isset($t[$envFile])) {
             if (!is_file($envFile)) {
@@ -3543,7 +3560,7 @@ static::$cidrs = array_unique(explode(',',
         return $current[$k] ?? null;
     }
 
-/** }ip{ */
+/*}ip{ */
     static function cidr_match($ip, $range)
     {// ip2long(): Passing null to parameter #1 ($ip) of type string is deprecated
         if(!$ip)return false;
@@ -3567,17 +3584,22 @@ static::$cidrs = array_unique(explode(',',
         }
     }
 
-/** }redis{ */
+/* }redis{ */
 
 // todo if no redis available put data to json Files ???
-    static function rc(){
-        if(static::conf('rc'))return static::conf('rc');
+    static function rc($k = null)
+    {
+        if(static::conf('rc')){
+            return static::conf('rc');
+        }
         try {
             $r = new \redis();
             $r->connect(static::conf('redisHost'), static::conf('redisPort'));
-            // $r->isConnected()
             if (static::conf('redisPass')) {
                 $r->auth(static::conf('redisPass'));
+            }
+            if (!static::conf('rdb')) {
+                static::conf(['rdb' => 0]);
             }
         } catch (\throwable $e) {
             $r = new redisFailSafe();// aka write keys to disk as json emulation
@@ -3586,9 +3608,38 @@ static::$cidrs = array_unique(explode(',',
         return $r;
     }
 
+    static function rsdb($k = null)
+    {
+        $r = static::rc();
+        $db = null;
+        $k2 = $k;
+        if ($k) {
+            [$db, $k2] = static::rSplitDbKey($k);
+            if (is_numeric($db) && $db > -1 && static::conf('rdb') != $db) {
+                if (!$k2) $k2 = $k;// if switch db only but no keys specified ...
+                static::conf(['rdb' => $db]);
+                $r->select($db);//Undefined variable $db
+            }
+        }
+        return [$r, $k2];
+    }
+/* extrait bdd switch et clé appart  */
+    static function rSplitDbKey($k = null)
+    {
+        $db = 0;// do we need a db switch ?
+        if ($k && strpos($k, '#')) {
+            [$db2, $k] = explode('#', $k);
+            if(is_array($k))$k=implode('#',$k);// multiple hashes ??
+            if (is_numeric($db2) && $db2 > -1 && $db2 < 16) {
+                $db = $db2;
+            }
+        }
+        return [$db, $k];
+    }
+
     static function rgg($k)
     {
-        $r=static::rc();
+        [$r, $k] = static::rsdb($k);
         $type = $r->type($k);
         switch ($type) {
             case 1;
@@ -3607,72 +3658,72 @@ static::$cidrs = array_unique(explode(',',
         }
     }
 
-    static function sset($k, $v=null){
-        if (is_array($k)) {
-            foreach ($k as $k2 => $v2) {
-                static::sset($k2, $v2);
-            }
-        } else {
-            static::rc()->set($k, $v);
-        }
-    }
-
-
-
     static function rset($k, $v, $exp = 0)
     {
-        // todo ; if array $v .. => static::rhmset($k,$v);
-        return static::rc()->set($k,$v);
-        if($exp)static::rexp($k,$exp);
+        if(is_array($k)){
+            static::rhmset($k,$v);
+            if($exp)static::rexp($k, $exp);
+            return $v;
+        }
+        $o=[];
+        [$r, $k] = static::rsdb($k);
+        if ($exp)$o['ex']=$exp;//'nx' -> if not exist, 'xx'-> if exists
+        $r->set($k,$v,$o);// $r->setex($k,$exp,$v);
+        //if ($exp) static::rexp($k, $exp);
+        return $r;
     }
 
-    static function rget($k){return static::rc()->get($k)??null;}
-    static function rexp($k, $v = 3600){return static::rc()->expire($k, $v);}
-    static function rd($k){return static::rc()->del($k);}
+static function rget($k){[$r, $k] = static::rsdb($k);return $r->get($k)??null;}
+static function rexp($k, $v = 3600){[$r, $k] = static::rsdb($k); return $r->expire($k, $v);}
+static function rd($k){[$r,$k]=static::rsdb($k);return $r->del($k);}
 
-static function rhget($h, $k){return static::rc()->hget($h, $k);}
-static function rhgetAll($h){return static::rc()->hgetAll($h);}
-static function rhset($h, $k, $v){return static::rc()->hset($h, $k, $v);}
-static function rhmset($h, $kv){return static::rc()->hmset($h, $kv);}
-static function rk($k = '*'){return static::rc()->keys($k);}
-static function hlen($k){return static::rc()->hlen($k);}
-static function hset($k,$v){return static::rc()->hset($k,$v);}
-static function hdel($k,$v){return static::rc()->hdel($k,$v);}
+static function rhget($h, $k){[$r, $h] = static::rsdb($h); return $r->hget($h, $k);}
+static function rhgetAll($h){[$r, $h] = static::rsdb($h); return $r->hgetAll($h);}
+static function rhset($h, $k, $v){[$r, $h] = static::rsdb($h); return $r->hset($h, $k, $v);}
+static function rhmset($h, $kv){[$r, $h] = static::rsdb($h); return $r->hmset($h, $kv);}
+static function rhIncrBy($h,$k2,$v=1){[$r,$h]=static::rsdb($h);return $r->hIncrBy($h,$k2,$v);}
+
+
+static function rkeys($k = '*'){[$r, $k] = static::rsdb($k); return $r->keys($k);}
+static function rk($k = '*'){[$r, $k] = static::rsdb($k); return $r->keys($k);}
+static function hlen($k){[$r, $k] = static::rsdb($k); return $r->hlen($k);}
+static function hset($k,$v){[$r, $k] = static::rsdb($k); return $r->hset($k,$v);}
+static function hdel($k,$v){[$r, $k] = static::rsdb($k); return $r->hdel($k,$v);}
+
+
+    static function rlen($k){[$r, $k] = static::rsdb($k); return $r->llen($k);}
+    static function rllen($k){[$r, $k] = static::rsdb($k); return $r->llen($k);}
+    static function lrange($k,$a=0,$b=-1){[$r, $k] = static::rsdb($k); return $r->lrange($k,$a,$b);}
+    static function rlrange($k,$a=0,$b=-1){[$r, $k] = static::rsdb($k); return $r->lrange($k,$a,$b);}
+    static function rList($k,$a=0,$b=-1){[$r, $k] = static::rsdb($k); return $r->lrange($k,$a,$b);}
+
+    static function rDecr($k,$n=1){[$r, $k] = static::rsdb($k); return $r->decr($k,$n);}
+
+    static function rIncr($k,$n=1){[$r, $k] = static::rsdb($k); return $r->incr($k,$n);}
+
+    static function rexists($k){[$r, $k] = static::rsdb($k); return $r->exists($k);}
+    static function rpush($k,$v,$e=0){
+        [$r, $k] = static::rsdb($k); $a=$r->rpush($k,$v);
+        if($e)static::rexp($k,$e);
+        return $a;
+    }
+
+    static function lpop($k){[$r, $k] = static::rsdb($k); return $r->lpop($k);}
+
+    static function blpop($k){[$r,$k]=static::rsdb($k); return $r->blpop($k);}
+
+
+
+/*aliases*/
 static function re($k, $v = 3600){return static::rexp($k,$v);}
 static function exp($k,$v = 3600){return static::re($k,$v);}
 static function rdel($k){return static::rd($k);}
 static function rg($k){return static::rget($k);}
 static function rs($k, $v ,$e=0){return static::rset($k,$v,$e);}
 
-    static function rlen($k){return static::rc()->llen($k);}
-    static function rllen($k){return static::rc()->llen($k);}
-    static function lrange($k,$a=0,$b=-1){return static::rc()->lrange($k,$a,$b);}
-    static function rlrange($k,$a=0,$b=-1){return static::rc()->lrange($k,$a,$b);}
-    static function rList($k,$a=0,$b=-1){return static::rc()->lrange($k,$a,$b);}
 
-    static function rDecr($k,$n=1){
-        return static::rc()->decr($k,$n);
-    }
 
-    static function rIncr($k,$n=1){
-        return static::rc()->incr($k,$n);
-    }
-
-    static function rpush($k,$v,$e=0){
-        $a=static::rc()->rpush($k,$v);
-        if($e)static::rexp($k,$e);
-        return $a;
-    }
-
-    static function lpop($k){
-        return static::rc()->lpop($k);
-    }
-
-    static function blpop($k){
-        return static::rc()->blpop($k);
-    }
-
-/** } io methods { */
+/* } io methods { */
     static function fap($file, $contents)
     {
         return static::fpc($file, "\n".$contents, FILE_APPEND);
@@ -3781,7 +3832,7 @@ static function rs($k, $v ,$e=0){return static::rset($k,$v,$e);}
         return $x;
     }
 
-/** } todo:wip:session to redis future wrapper { */
+/* } todo:wip:session to redis future wrapper { */
 
 /*
 wrapper open and close session for long long pages which locks the session for n minutes, then a javascript dependency waits for the lock to be release for simply reading then
@@ -3792,66 +3843,142 @@ todo: to be replaced with $r->set('session_id:key',$value,expire=3600)
      * session_start wrapper returns session id
      * @return void
      */
-    static function ss()
+    static function ss($reason='')
     {
         if (static::conf('sessions2redis')) {
-            $_SESSION = $_SESSION ?? [];//emulation :: Undefined global variable $_SESSION
-            $a=static::getCookie('RSID');
-            if($a)return $a;
-            //set cookie for session ( PHPSESSID_ ) => RSID=uniqid()
-            $a=\uniqid();
-            static::setCookie('RSID',$a);
-            return $a;
+            if (!static::getCookie('RSID')) {
+                static::setCookie('RSID', uniqid());
+            }
+
+            if (!isset($_SESSION)) {// Premier démarrage Session non peuplée :)
+                $k2 = '14#session:' . static::getCookie('RSID');
+                $_SESSION = $keys = static::rhgetAll($k2) ?? [];
+                if ($keys) {
+                    foreach ($keys as $k => $v) {
+                        if (($decoded = static::jsonValid($v)) && $decoded) {
+                            $_SESSION[$k] = $v;// deflate session keysValues to Array
+                        }
+                    }
+                }
+            }
+
+            return static::getCookie('RSID');
         }
         if (session_status() === PHP_SESSION_NONE) {session_start();}
         return session_id();
     }
 
-    static function sesset($keys, $v = null, $expire = 3600){
+    static function sessionClose(){
+        // Called upon shutdown if some $_SESSION keys have been modified ...
+        if (static::conf('sessions2redis') && static::getCookie('RSID') && isset($_SESSION) && $_SESSION) {
+            $k2 = '14#session:' . static::getCookie('RSID');
+            static::re($k2, 36000);// pour chaque session ayant eu des écritures ... chaque fermeture
+// on pêut choisir d'écrire à la fin en utilisant $_SESSION ou sesset pour du direct à être accédé en microfréquentiel par d'autres processus :)
+            $keys = static::rhgetAll($k2);
+            $mod=[];
+            foreach ($_SESSION as $k => $v) {
+                if (is_array($v)) $v = json_encode($v);
+                if (!isset($keys[$k]) or $keys[$k] != $v) {
+                    $mod[$k] = $v;
+                }
+            }
+            if($mod){
+                static::rhmset($k2,$mod);
+            }
+        }
+    }
+
+    static function sesset($keys=[], $v = null, $expire = 3600){
         static::ss();
 
         if($keys && !is_array($keys) && $v){$keys=[$keys=>$v];}
-        foreach($keys as $k=>$v){$_SESSION[$k]=$v;}// emulation ou normal
+        foreach($keys as $k=>$v2){$_SESSION[$k]=$v2;}// emulation ou normal
+
         if (static::conf('sessions2redis')) {
-            $k2='session:'.static::getCookie('RSID');
-            static::rhmset($k2,$keys);
-            return static::re($k2,$expire);
+            $k2 = '14#session:' . static::getCookie('RSID');
+            static::rhmset($k2, $keys);
+            return static::re($k2, $expire);
         }
+
         session_write_close();
+    }
+
+/* no usage ...
+    static function sset($k, $v=null){
+        if (is_array($k)) {
+            foreach ($k as $k2 => $v2) {// hmset
+                static::sset($k2, $v2);
+            }
+        } else {
+            $r=static::rsdb('14#');$r->set($k, $v);
+        }
+    }
+*/
+
+    static function sessdel($renew = false, $reason = '')
+    {
+        static::ss();
+        $_SESSION = [];
+
+        if (static::conf('sessions2redis')) {
+            $k2 = '14#session:' . static::getCookie('RSID');
+            static::rdel($k2);
+            if($renew)return;
+            header('Set-Cookie: RSID=a; path=/; expires=Thu, 19 Nov 1981 08:52:00 GMT', true);// otherwise expire it
+            return;
+        }
+        @session_destroy();
+        if($renew)return session_start();
+        header('Set-Cookie: '.session_name().'=a; path=/; expires=Thu, 19 Nov 1981 08:52:00 GMT', true);
+    }
+
+    static function sessget($k = null, $expire = 3600){
+        return static::sesget($k, $expire);
     }
 
     static function sesget($k = null, $expire = 3600)
     {
         static::ss();
+
+        if($k && isset($_SESSION[$k])){
+            return $_SESSION[$k];
+        } elseif(!$k && $_SESSION){
+            return $_SESSION;// toute la session
+        }
+
+// puis, si non peuplée, on tente de récupérer la clé individuelle
         if (static::conf('sessions2redis')) {
-            $k2='session:'.static::getCookie('RSID');
+
+            $k2='14#session:'.static::getCookie('RSID');
             if($k){
                 $a = static::rHget($k2, $k) ?? null;
 //var_dump($a);var_dump($k);var_dump($_SESSION);
 //Cannot use a scalar value as an array","
-                $_SESSION[$k] = $a;// emulation
+                if($a)$_SESSION[$k] = $a;// emulation
             } else {
                 $a = static::rHgetAll($k2) ?? null;
-                if ($a) $_SESSION += $a;// emulation
+                if ($a) $_SESSION += $a;// array_merge en conservant les clés ..
             }
-            if ($a) {
-                static::re($k2, $expire);
+
+            if (false && $a) {
+                static::re($k2, $expire);// chaque lecture: repousser l'expiration de la session
             }
             return $a;
         }
-        return $_SESSION[$k] ?? null;
+// fallback
+        return null;
         session_write_close();
     }
 
-    static function sget($k){
-        return static::rc()->get($k);
-    }
     // todo: virtual session support : using redis or short session_write_closes ???
 }
+if(isset($_COOKIE['kBTrace'])){$cpu=getrusage()['ru_stime.tv_usec'];$_ENV['cpus'][basename(__FILE__).__LINE__]=$cur=$cpu-$_ENV['lastcpu'];$_ENV['lastcpu']=$cpu;}// 667450 dans le boot
 
 if(!isset($custom)){
     fun::init();
 }
+
+if(isset($_COOKIE['kBTrace'])){$cpu=getrusage()['ru_stime.tv_usec'];$_ENV['cpus'][basename(__FILE__).__LINE__]=$cur=$cpu-$_ENV['lastcpu'];$_ENV['lastcpu']=$cpu;}// 667450 dans le boot
 return; ?>
 
 errors: usages of
